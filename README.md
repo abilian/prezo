@@ -4,19 +4,32 @@ A TUI-based presentation tool for the terminal, built with [Textual](https://tex
 
 Display presentations written in Markdown using conventions similar to those of [MARP](https://marp.app/) or [Deckset](https://www.deckset.com/).
 
-## Features
+## Features (v0.3)
 
 - **Markdown presentations** - MARP/Deckset format with `---` slide separators
-- **Live reload** - Auto-refresh when file changes
+- **Live reload** - Auto-refresh when file changes (1s polling)
 - **Keyboard navigation** - Vim-style keys, arrow keys, and more
 - **Slide overview** - Grid view for quick navigation (`o`)
 - **Search** - Find slides by content (`/`)
 - **Table of contents** - Navigate by headings (`t`)
+- **Go to slide** - Jump to specific slide number (`:`)
 - **Presenter notes** - Toggle notes panel (`p`)
-- **Themes** - Multiple color schemes (`T` to cycle)
+- **Themes** - 6 color schemes (`T` to cycle): dark, light, dracula, solarized-dark, nord, gruvbox
 - **Timer/Clock** - Elapsed time and countdown (`c`)
-- **Edit slides** - Open in $EDITOR (`e`)
-- **PDF export** - Export with TUI appearance
+- **Edit slides** - Open in $EDITOR (`e`), saves back to source file
+- **Export** - PDF, HTML, PNG, SVG formats with customizable themes and sizes
+- **Image support** - Inline and background images with MARP layout directives (left/right/fit)
+- **Native image viewing** - Press `i` for full-quality image display (iTerm2/Kitty protocols)
+- **Blackout/Whiteout** - Blank screen modes (`b`/`w`)
+- **Command palette** - Quick access to all commands (`Ctrl+P`)
+- **Config file** - Customizable settings via `~/.config/prezo/config.toml`
+- **Recent files** - Tracks recently opened presentations
+- **Position memory** - Remembers last slide position per file
+
+## Demo
+
+[![asciicast](https://asciinema.org/a/0rRbYzbq7iyha2wLkN6o4OPcX.svg)](https://asciinema.org/a/0rRbYzbq7iyha2wLkN6o4OPcX)
+
 
 ## Installation
 
@@ -35,6 +48,15 @@ uv tool install prezo
 ```bash
 # View a presentation
 prezo presentation.md
+
+# Disable auto-reload
+prezo --no-watch presentation.md
+
+# Use custom config
+prezo -c myconfig.toml presentation.md
+
+# Set image rendering mode
+prezo --image-mode ascii presentation.md   # Options: auto, kitty, sixel, iterm, ascii, none
 
 # Export to PDF
 prezo -e pdf presentation.md
@@ -60,8 +82,11 @@ prezo -e pdf presentation.md --theme light --size 100x30 --no-chrome
 | `T` | Cycle theme |
 | `b` | Blackout screen |
 | `w` | Whiteout screen |
+| `i` | View image (native quality) |
 | `e` | Edit in $EDITOR |
 | `r` | Reload file |
+| `Ctrl+P` | Command palette |
+| `?` | Help |
 | `q` | Quit |
 
 ## Presentation Format
@@ -106,15 +131,26 @@ Press `T` to cycle through themes during presentation.
 
 ## Export Options
 
+Prezo supports multiple export formats: PDF, HTML, PNG, and SVG.
+
 ```bash
+# PDF export
 prezo -e pdf presentation.md                    # Default: 80x24, dark theme
 prezo -e pdf presentation.md --theme light      # Light theme (for printing)
 prezo -e pdf presentation.md --size 100x30      # Custom dimensions
 prezo -e pdf presentation.md --no-chrome        # No window decorations
 prezo -e pdf presentation.md -o slides.pdf      # Custom output path
+
+# HTML export (single self-contained file)
+prezo -e html presentation.md
+
+# Image export (PNG/SVG)
+prezo -e png presentation.md                    # All slides as PNG
+prezo -e png presentation.md --slide 3          # Single slide (1-indexed)
+prezo -e svg presentation.md --scale 2.0        # SVG with scale factor
 ```
 
-PDF export requires optional dependencies:
+PDF/PNG/SVG export requires optional dependencies:
 
 ```bash
 pip install prezo[export]

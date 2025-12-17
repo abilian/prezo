@@ -62,7 +62,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         prog="prezo",
         description="TUI-based presentation tool for Markdown slides",
-        epilog="For more information, visit: https://github.com/anthropics/prezo",
+        epilog="For more information, visit: https://github.com/abilian/prezo",
     )
     parser.add_argument(
         "file",

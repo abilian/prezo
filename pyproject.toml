@@ -23,6 +23,7 @@ dev = [
     "pypdf>=4.0.0",
     "abilian-devtools>=0.8.0",
     "pytest-asyncio>=1.3.0",
+    "ty>=0.0.2",
 ]
 export = [
     "cairosvg>=2.7.0",

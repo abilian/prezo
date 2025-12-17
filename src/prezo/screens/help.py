@@ -83,8 +83,9 @@ countdown_minutes: 45
 
 ## Documentation
 
-- **GitHub**: https://github.com/anthropics/prezo
-- **Issues**: https://github.com/anthropics/prezo/issues
+- **GitHub**: https://github.com/abilian/prezo
+- **SourceHut**: https://git.sr.ht/~sfermigier/prezo
+- **Issues**: https://github.com/abilian/prezo/issues
 
 ---
 
@@ -118,7 +119,6 @@ class HelpScreen(ModalScreen[None]):
 
     #help-content {
         width: 100%;
-        height: 1fr;
     }
     """
 
