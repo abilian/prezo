@@ -11,7 +11,7 @@ from typing import Any
 try:
     import tomllib
 except ImportError:
-    import tomli as tomllib  # type: ignore[import-not-found,no-redef]
+    import tomli as tomllib  # type: ignore[no-redef]
 
 
 CONFIG_DIR = Path.home() / ".config" / "prezo"

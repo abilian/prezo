@@ -53,7 +53,7 @@ class SixelRenderer:
         from PIL import Image
 
         # Load and resize image
-        img = Image.open(path)
+        img: Image.Image = Image.open(path)
         img = img.convert("RGB")
 
         # Calculate pixel dimensions
@@ -89,8 +89,8 @@ class SixelRenderer:
         """
         from PIL import Image
 
-        img = Image.open(path)
-        img = img.convert("P", palette=Image.ADAPTIVE, colors=256)
+        img: Image.Image = Image.open(path)
+        img = img.convert("P", palette=Image.Palette.ADAPTIVE, colors=256)
 
         # Calculate pixel dimensions
         pixel_width = width * 8

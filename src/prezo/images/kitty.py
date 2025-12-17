@@ -47,13 +47,14 @@ class KittyImageManager:
 
     _instance: KittyImageManager | None = None
     _next_id: int = 1
+    _initialized: bool = False
 
     def __new__(cls) -> Self:
         """Create or return singleton instance."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
-        return cls._instance
+        return cls._instance  # type: ignore[return-value]
 
     def __init__(self) -> None:
         """Initialize the Kitty image manager."""

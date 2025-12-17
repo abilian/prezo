@@ -240,8 +240,8 @@ def export_to_pdf(
         return EXPORT_FAILED, "Presentation has no slides"
 
     # Create temporary directory for SVG files
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmpdir = Path(tmpdir)
+    with tempfile.TemporaryDirectory() as tmpdir_str:
+        tmpdir = Path(tmpdir_str)
         svg_files = []
 
         # Render each slide to SVG

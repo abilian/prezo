@@ -6,7 +6,7 @@ Falls back to Unicode halfcell rendering for unsupported terminals.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from textual.widgets import Static
 from textual_image.widget import Image as TextualImage
@@ -68,7 +68,7 @@ class ImageDisplay(Static):
         self._image_path: Path | str | None = image_path
         self._width: int | None = width
         self._height: int | None = height
-        self._image_widget: TextualImage | None = None
+        self._image_widget: Any = None  # TextualImage | None
 
     def compose(self) -> ComposeResult:
         """Compose the image widget."""

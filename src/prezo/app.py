@@ -12,9 +12,12 @@ import termios
 import tty
 from functools import partial
 from pathlib import Path
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from textual.app import App, ComposeResult
+
+if TYPE_CHECKING:
+    from textual.timer import Timer
 from textual.binding import Binding, BindingType
 from textual.command import Hit, Hits, Provider
 from textual.containers import Horizontal, Vertical, VerticalScroll
@@ -196,7 +199,7 @@ class PrezoApp(App):
 
     ENABLE_COMMAND_PALETTE = True
     COMMAND_PALETTE_BINDING = "ctrl+p"
-    COMMANDS: ClassVar[set[type[Provider]]] = {PrezoCommands}  # pyright: ignore[reportIncompatibleVariableOverride]
+    COMMANDS: ClassVar[set[type[Provider]]] = {PrezoCommands}  # type: ignore[assignment]
 
     CSS = """
     Screen {
@@ -371,7 +374,7 @@ class PrezoApp(App):
             self.watch_enabled = watch
 
         self._file_mtime: float | None = None
-        self._watch_timer = None
+        self._watch_timer: Timer | None = None
         self._reload_interval = self.config.behavior.reload_interval
 
     def compose(self) -> ComposeResult:
@@ -735,7 +738,7 @@ class PrezoApp(App):
     def watch_app_theme(self, theme_name: str) -> None:
         """Apply theme when it changes."""
         # Only apply to widgets after mount (watcher fires during init)
-        if not self.is_mounted:
+        if not self.is_mounted:  # type: ignore[truthy-function]
             return
         self._apply_theme(theme_name)
         self.notify(f"Theme: {theme_name}", timeout=1)

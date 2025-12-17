@@ -54,7 +54,7 @@ class AsciiRenderer:
         """Render image using PIL."""
         from PIL import Image
 
-        img = Image.open(path)
+        img: Image.Image = Image.open(path)
 
         # Convert to grayscale
         img = img.convert("L")
@@ -114,7 +114,7 @@ class ColorAsciiRenderer(AsciiRenderer):
         """Render image as colored ASCII."""
         from PIL import Image
 
-        img = Image.open(path)
+        img: Image.Image = Image.open(path)
 
         # Keep color, convert to RGB
         img = img.convert("RGB")
@@ -178,7 +178,7 @@ class HalfBlockRenderer:
         """Render image using half-blocks."""
         from PIL import Image
 
-        img = Image.open(path)
+        img: Image.Image = Image.open(path)
         img = img.convert("RGB")
 
         # Calculate dimensions (height is doubled because of half-blocks)

@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 from textual.reactive import reactive
 from textual.widgets import Static
+
+if TYPE_CHECKING:
+    from textual.timer import Timer
 
 
 def format_progress_bar(current: int, total: int, width: int = 20) -> str:
@@ -57,7 +61,7 @@ class StatusBar(Static):
         """Initialize the status bar."""
         super().__init__(**kwargs)
         self._start_time: datetime | None = None
-        self._timer = None
+        self._timer: Timer | None = None
 
     def on_mount(self) -> None:
         """Start the timer on mount."""
@@ -185,7 +189,7 @@ class ClockDisplay(Static):
         """Initialize the clock display."""
         super().__init__(**kwargs)
         self._start_time: datetime | None = None
-        self._timer = None
+        self._timer: Timer | None = None
 
     def on_mount(self) -> None:
         """Start the clock timer on mount."""
