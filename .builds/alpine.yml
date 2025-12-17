@@ -3,6 +3,7 @@ packages:
   - uv
   - gcc
   - python3-dev
+  - cairo-dev
 
 secrets:
   - b88a4c2c-944c-42a6-9fbb-7483049c458a
@@ -16,7 +17,7 @@ tasks:
       uv sync
   - test: |
       cd prezo
-      uv run pytest
+      uv run pytest -q --tb=short
   - lint: |
       cd prezo
       uv run ruff check

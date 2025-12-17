@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .base import ThemedModalScreen
 from .blackout import BlackoutScreen
 from .goto import GotoSlideScreen
 from .help import HelpScreen
@@ -16,4 +17,5 @@ __all__ = [
     "SlideOverviewScreen",
     "SlideSearchScreen",
     "TableOfContentsScreen",
+    "ThemedModalScreen",
 ]

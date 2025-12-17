@@ -6,8 +6,9 @@ from typing import TYPE_CHECKING, ClassVar
 
 from textual.binding import Binding, BindingType
 from textual.containers import VerticalScroll
-from textual.screen import ModalScreen
 from textual.widgets import Markdown, Static
+
+from .base import ThemedModalScreen
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -93,7 +94,7 @@ countdown_minutes: 45
 """
 
 
-class HelpScreen(ModalScreen[None]):
+class HelpScreen(ThemedModalScreen[None]):
     """Modal screen showing help content."""
 
     CSS = """

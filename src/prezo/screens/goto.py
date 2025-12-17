@@ -6,14 +6,15 @@ from typing import TYPE_CHECKING, ClassVar
 
 from textual.binding import Binding, BindingType
 from textual.containers import Vertical
-from textual.screen import ModalScreen
 from textual.widgets import Input, Static
+
+from .base import ThemedModalScreen
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
 
 
-class GotoSlideScreen(ModalScreen[int | None]):
+class GotoSlideScreen(ThemedModalScreen[int | None]):
     """Modal screen for jumping to a specific slide number."""
 
     CSS = """
@@ -71,6 +72,7 @@ class GotoSlideScreen(ModalScreen[int | None]):
 
     def on_mount(self) -> None:
         """Focus the input field on mount."""
+        super().on_mount()
         self.query_one("#goto-input", Input).focus()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:

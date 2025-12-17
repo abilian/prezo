@@ -7,8 +7,9 @@ from typing import TYPE_CHECKING, ClassVar
 
 from textual.binding import Binding, BindingType
 from textual.containers import VerticalScroll
-from textual.screen import ModalScreen
 from textual.widgets import Static
+
+from .base import ThemedModalScreen
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -50,7 +51,7 @@ class TocEntry(Static):
         return f"{marker} {indent}{self.title} ({self.slide_index + 1})"
 
 
-class TableOfContentsScreen(ModalScreen[int | None]):
+class TableOfContentsScreen(ThemedModalScreen[int | None]):
     """Modal screen showing table of contents based on headings."""
 
     CSS = """
@@ -193,6 +194,7 @@ class TableOfContentsScreen(ModalScreen[int | None]):
 
     def on_mount(self) -> None:
         """Scroll to the selected entry on mount."""
+        super().on_mount()
         self._scroll_to_selected()
 
     def _update_selection(self) -> None:

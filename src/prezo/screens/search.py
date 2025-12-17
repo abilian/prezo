@@ -7,8 +7,9 @@ from typing import TYPE_CHECKING, ClassVar
 
 from textual.binding import Binding, BindingType
 from textual.containers import Vertical, VerticalScroll
-from textual.screen import ModalScreen
 from textual.widgets import Input, Static
+
+from .base import ThemedModalScreen
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -39,7 +40,7 @@ class SearchResultItem(Static):
         return f"[{self.slide_index + 1}] {self.title}\n    {self.context}"
 
 
-class SlideSearchScreen(ModalScreen[int | None]):
+class SlideSearchScreen(ThemedModalScreen[int | None]):
     """Modal screen for searching slides by content."""
 
     CSS = """
@@ -128,6 +129,7 @@ class SlideSearchScreen(ModalScreen[int | None]):
 
     def on_mount(self) -> None:
         """Focus the search input on mount."""
+        super().on_mount()
         self.query_one("#search-input", Input).focus()
 
     def on_input_changed(self, event: Input.Changed) -> None:

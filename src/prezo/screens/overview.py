@@ -6,10 +6,11 @@ from typing import TYPE_CHECKING, ClassVar
 
 from textual.binding import Binding, BindingType
 from textual.containers import Grid, VerticalScroll
-from textual.screen import ModalScreen
 from textual.widgets import Button, Static
 
 from prezo.widgets import SlideButton
+
+from .base import ThemedModalScreen
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -17,7 +18,7 @@ if TYPE_CHECKING:
     from prezo.parser import Presentation
 
 
-class SlideOverviewScreen(ModalScreen[int | None]):
+class SlideOverviewScreen(ThemedModalScreen[int | None]):
     """Modal screen showing grid overview of all slides."""
 
     GRID_COLUMNS = 4  # Number of columns in the grid
@@ -118,6 +119,7 @@ class SlideOverviewScreen(ModalScreen[int | None]):
 
     def on_mount(self) -> None:
         """Focus the current slide button on mount."""
+        super().on_mount()
         self._focus_selected()
 
     def _focus_selected(self) -> None:

@@ -16,9 +16,9 @@ lint:
 	uv run pyrefly check src
 
 format:
-	uv run ruff format .
-	uv run ruff check . --fix
-	uv run ruff format .
+	uv run ruff format src tests
+	uv run ruff check src tests --fix
+	uv run ruff format src tests
 
 test:
 	uv run pytest
