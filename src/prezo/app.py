@@ -196,7 +196,7 @@ class PrezoApp(App):
 
     ENABLE_COMMAND_PALETTE = True
     COMMAND_PALETTE_BINDING = "ctrl+p"
-    COMMANDS: ClassVar[set[type[Provider]]] = {PrezoCommands}
+    COMMANDS: ClassVar[set[type[Provider]]] = {PrezoCommands}  # pyright: ignore[reportIncompatibleVariableOverride]
 
     CSS = """
     Screen {

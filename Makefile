@@ -1,19 +1,15 @@
 .PHONY: all test build format check lint clean
 
-all:
-	uv run pytest
-	uv run ruff format . --check
-	uv run ruff check src tests
-	uv run ty check src
-	uv run pyrefly check src
-	uv run mypy src
+all: test lint
 
 check: lint
 
 lint:
 	uv run ruff check src tests
 	uv run ruff format . --check
+	uv run ty check src
 	uv run pyrefly check src
+	uv run mypy src
 
 format:
 	uv run ruff format src tests

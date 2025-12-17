@@ -674,6 +674,8 @@ def export_slide_to_image(
             bytestring=svg_content.encode("utf-8"),
             scale=scale,
         )
+        if png_data is None:
+            return EXPORT_FAILED, "PNG conversion returned no data"
         output_path.write_bytes(png_data)
         return EXPORT_SUCCESS, f"Exported slide {slide_num + 1} to {output_path}"
     except Exception as e:

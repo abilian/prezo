@@ -4,6 +4,7 @@ packages:
   - gcc
   - python3-dev
   - cairo-dev
+  - chafa
 
 secrets:
   - b88a4c2c-944c-42a6-9fbb-7483049c458a

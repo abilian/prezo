@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 # ANSI color codes for error messages
 RED = "\033[91m"
@@ -13,7 +14,7 @@ BOLD = "\033[1m"
 RESET = "\033[0m"
 
 
-def _error(message: str) -> None:
+def _error(message: str) -> NoReturn:
     """Print an error message and exit."""
     sys.stderr.write(f"{RED}{BOLD}error:{RESET} {message}\n")
     sys.exit(1)
@@ -22,6 +23,26 @@ def _error(message: str) -> None:
 def _warn(message: str) -> None:
     """Print a warning message."""
     sys.stderr.write(f"{YELLOW}{BOLD}warning:{RESET} {message}\n")
+
+
+def _parse_size(size_str: str) -> tuple[int, int]:
+    """Parse a size string like '80x24' into width and height.
+
+    Args:
+        size_str: Size string in WIDTHxHEIGHT format.
+
+    Returns:
+        Tuple of (width, height).
+
+    """
+    try:
+        width, height = map(int, size_str.lower().split("x"))
+        return width, height
+    except ValueError:
+        _error(
+            f"invalid size format: {size_str}\n\n"
+            "Use WIDTHxHEIGHT format (e.g., 80x24, 100x30)"
+        )
 
 
 def _validate_file(path: Path, must_exist: bool = True) -> Path:
@@ -158,13 +179,7 @@ def main() -> None:
         source_path = _validate_file(Path(args.file))
 
         # Parse size
-        try:
-            width, height = map(int, args.size.lower().split("x"))
-        except ValueError:
-            _error(
-                f"invalid size format: {args.size}\n\n"
-                "Use WIDTHxHEIGHT format (e.g., 80x24, 100x30)"
-            )
+        width, height = _parse_size(args.size)
 
         if args.export == "html":
             from .export import run_html_export  # noqa: PLC0415

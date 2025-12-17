@@ -128,7 +128,7 @@ def supports_true_color() -> bool:
     return _is_iterm() or _is_kitty()
 
 
-def get_capability_summary() -> dict[str, bool | str]:
+def get_capability_summary() -> dict[str, bool | int | str]:
     """Get a summary of terminal capabilities.
 
     Returns:
