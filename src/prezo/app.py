@@ -242,12 +242,12 @@ class PrezoApp(App):
     #slide-container {
         width: 1fr;
         height: 100%;
-        padding: 1 4;
+        padding: 0 4 1 4;
     }
 
     #slide-content {
         width: 100%;
-        padding: 1 2;
+        padding: 0 2;
     }
 
     /* Image container - hidden by default */

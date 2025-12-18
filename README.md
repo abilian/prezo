@@ -123,6 +123,8 @@ Presenter notes go here (after ???)
 More content...
 ```
 
+See the [Writing Presentations in Markdown](docs/tutorial.md) tutorial for a complete guide on creating presentations, including images, presenter notes, and configuration directives.
+
 ## Themes
 
 Available themes: `dark`, `light`, `dracula`, `solarized-dark`, `nord`, `gruvbox`
