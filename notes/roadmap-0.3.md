@@ -4,9 +4,21 @@
 
 ## Overview
 
-Focus on error handling, developer experience, and additional export formats.
+Focus on error handling, developer experience, additional export formats, and native image support.
 
 ## Completed Features
+
+### Native Image Viewing
+**Priority:** Medium | **Effort:** Medium
+
+Full-quality image viewing using terminal graphics protocols.
+
+**Completed:**
+- [x] Press `i` to view images at native quality
+- [x] Support for iTerm2 inline images protocol
+- [x] Support for Kitty graphics protocol
+- [x] textual-image integration for image display
+- [x] Automatic protocol detection
 
 ### Better Error Handling
 **Priority:** Medium | **Effort:** Low
@@ -50,12 +62,21 @@ prezo -e svg presentation.md --slide 3    # Single slide
 prezo -e png presentation.md -o ./slides/ # Output directory
 ```
 
-### Documentation Links
+### Documentation
 **Priority:** Low | **Effort:** Low
 
 **Completed:**
 - [x] Add documentation URL to help screen (GitHub, Issues)
 - [x] Command palette mentioned in help and welcome
+- [x] Tutorial: "Writing Presentations in Markdown" (`docs/tutorial.md`)
+
+### Bug Fixes (v0.3.1, v0.3.2)
+
+- [x] Modal screens now use the current theme
+- [x] Help modal scrollbar fix
+- [x] Type checker fixes (mypy, pyrefly, ty)
+- [x] Pillow deprecation warnings fixed (`getdata()` → `get_flattened_data()`)
+- [x] Slide layout adjusted for more content space
 
 ## Success Criteria
 
@@ -63,3 +84,4 @@ v0.3.0 is complete when:
 1. ✓ Error messages are user-friendly and actionable
 2. ✓ Command palette provides discoverability for all features
 3. ✓ Individual slides can be exported as PNG/SVG images
+4. ✓ Native image viewing works in supported terminals
