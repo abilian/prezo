@@ -46,7 +46,7 @@ build-backend = "uv_build"
 missing-source-for-stubs = false  # markdown stubs bundled but source not found
 missing-import = false  # libsixel optional dependency
 missing-attribute = false  # PIL.Image.ADAPTIVE
-no-matching-overload = false  # PIL getdata() type issues
+no-matching-overload = false  # PIL type stub issues
 bad-argument-type = false  # LiteralString strictness with string append
 bad-override = false  # Textual COMMANDS type override
 

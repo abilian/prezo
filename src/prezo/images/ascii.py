@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import cast
 
 # ASCII characters from dark to light
 ASCII_CHARS = " .:-=+*#%@"
@@ -68,8 +69,8 @@ class AsciiRenderer:
         # Resize
         img = img.resize((new_width, new_height))
 
-        # Convert to ASCII
-        pixels = list(img.getdata())
+        # Convert to ASCII (grayscale values 0-255)
+        pixels = cast("list[int]", list(img.get_flattened_data()))
         lines = []
 
         for y in range(new_height):
@@ -127,8 +128,8 @@ class ColorAsciiRenderer(AsciiRenderer):
         # Resize
         img = img.resize((new_width, new_height))
 
-        # Convert to colored ASCII
-        pixels = list(img.getdata())
+        # Convert to colored ASCII (RGB tuples)
+        pixels = cast("list[tuple[int, int, int]]", list(img.get_flattened_data()))
         lines = []
 
         for y in range(new_height):
@@ -190,7 +191,8 @@ class HalfBlockRenderer:
         new_height = new_height - (new_height % 2)
 
         img = img.resize((new_width, new_height))
-        pixels = list(img.getdata())
+        # RGB tuples for half-block rendering
+        pixels = cast("list[tuple[int, int, int]]", list(img.get_flattened_data()))
 
         lines = []
         for y in range(0, new_height, 2):

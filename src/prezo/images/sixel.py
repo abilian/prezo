@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -108,12 +108,12 @@ class SixelRenderer:
 
         img = img.resize((pixel_width, pixel_height))
 
-        # Get palette
+        # Get palette and pixel data (palette indices 0-255)
         palette = img.getpalette()
-        pixels = list(img.getdata())
+        pixels = cast("list[int]", list(img.get_flattened_data()))
 
         # Build sixel output
-        output = []
+        output: list[str] = []
 
         # Start sixel sequence
         output.append("\x1bPq")
