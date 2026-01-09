@@ -36,6 +36,12 @@ export = [
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "unit: Unit tests (fast, isolated, no I/O)",
+    "integration: Integration tests (component interactions, file I/O)",
+    "e2e: End-to-end tests (full app/CLI workflows)",
+    "slow: Slow tests that can be skipped with -m 'not slow'",
+]
 
 [build-system]
 requires = ["uv_build>=0.8.4,<0.9.0"]

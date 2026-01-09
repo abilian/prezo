@@ -1,10 +1,6 @@
-"""Tests for the config module."""
+"""Unit tests for config dataclasses (pure logic, no I/O)."""
 
 from __future__ import annotations
-
-import json
-import tempfile
-from pathlib import Path
 
 from prezo.config import (
     AppState,
@@ -14,7 +10,6 @@ from prezo.config import (
     ExportConfig,
     ImageConfig,
     TimerConfig,
-    load_config,
 )
 
 
@@ -62,12 +57,25 @@ class TestExportConfig:
         assert config.default_size == "100x30"
         assert config.chrome is True
 
+    def test_custom_size(self):
+        config = ExportConfig(default_size="120x40")
+        assert config.default_size == "120x40"
+
 
 class TestImageConfig:
     def test_default_values(self):
         config = ImageConfig()
         assert config.mode == "auto"
         assert config.ascii_width == 60
+
+    def test_all_valid_modes(self):
+        for mode in ["auto", "kitty", "sixel", "iterm", "ascii", "none"]:
+            config = ImageConfig(mode=mode)
+            assert config.mode == mode
+
+    def test_custom_ascii_width(self):
+        config = ImageConfig(ascii_width=100)
+        assert config.ascii_width == 100
 
 
 class TestConfig:
@@ -94,84 +102,6 @@ class TestConfig:
         assert config.display.theme == "dracula"
         # Other values unchanged
         assert config.timer.show_clock is True
-
-
-class TestAppState:
-    def test_empty_state(self):
-        state = AppState()
-        assert state.recent_files == []
-        assert state.last_positions == {}
-
-    def test_add_recent_file(self):
-        state = AppState()
-        state.add_recent_file("/path/to/file1.md")
-        state.add_recent_file("/path/to/file2.md")
-
-        assert len(state.recent_files) == 2
-        assert state.recent_files[0] == "/path/to/file2.md"  # Most recent first
-
-    def test_add_recent_file_deduplicates(self):
-        state = AppState()
-        state.add_recent_file("/path/to/file1.md")
-        state.add_recent_file("/path/to/file2.md")
-        state.add_recent_file("/path/to/file1.md")  # Re-add first file
-
-        assert len(state.recent_files) == 2
-        assert state.recent_files[0] == "/path/to/file1.md"
-
-    def test_add_recent_file_limits_size(self):
-        state = AppState()
-        for i in range(25):
-            state.add_recent_file(f"/path/to/file{i}.md")
-
-        assert len(state.recent_files) == 20  # Default max
-
-    def test_set_and_get_position(self):
-        state = AppState()
-        state.set_position("/path/to/file.md", 5)
-        assert state.get_position("/path/to/file.md") == 5
-        assert state.get_position("/unknown/file.md") == 0  # Default
-
-
-class TestLoadConfig:
-    def test_load_missing_config_returns_defaults(self):
-        config = load_config(Path("/nonexistent/config.toml"))
-        assert config.display.theme == "dark"
-
-    def test_load_valid_config(self):
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
-            f.write('[display]\ntheme = "light"\n')
-            f.flush()
-            config = load_config(Path(f.name))
-            assert config.display.theme == "light"
-
-
-class TestSaveLoadState:
-    def test_save_and_load_state(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            state_file = Path(tmpdir) / "state.json"
-
-            # Create and save state
-            state = AppState()
-            state.add_recent_file("/path/to/file.md")
-            state.set_position("/path/to/file.md", 10)
-
-            # Manually write state (since save_state uses module constants)
-            data = {
-                "recent_files": state.recent_files,
-                "last_positions": state.last_positions,
-            }
-            state_file.write_text(json.dumps(data))
-
-            # Load it back
-            loaded_data = json.loads(state_file.read_text())
-            loaded_state = AppState(
-                recent_files=loaded_data.get("recent_files", []),
-                last_positions=loaded_data.get("last_positions", {}),
-            )
-
-            assert loaded_state.recent_files == ["/path/to/file.md"]
-            assert loaded_state.get_position("/path/to/file.md") == 10
 
 
 class TestConfigUpdateFromDict:
@@ -232,35 +162,41 @@ class TestConfigUpdateFromDict:
         assert config.images.mode == "none"
 
 
-class TestLoadConfigErrors:
-    """Tests for load_config error handling."""
+class TestAppState:
+    def test_empty_state(self):
+        state = AppState()
+        assert state.recent_files == []
+        assert state.last_positions == {}
 
-    def test_load_invalid_toml_returns_defaults(self):
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
-            f.write("invalid toml content {{{{")
-            f.flush()
-            config = load_config(Path(f.name))
-            # Should return defaults
-            assert config.display.theme == "dark"
-            assert config.timer.show_clock is True
+    def test_add_recent_file(self):
+        state = AppState()
+        state.add_recent_file("/path/to/file1.md")
+        state.add_recent_file("/path/to/file2.md")
 
-    def test_load_empty_file_returns_defaults(self):
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
-            f.write("")
-            f.flush()
-            config = load_config(Path(f.name))
-            assert config.display.theme == "dark"
+        assert len(state.recent_files) == 2
+        assert state.recent_files[0] == "/path/to/file2.md"  # Most recent first
 
-    def test_load_partial_config_fills_defaults(self):
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
-            f.write("[timer]\nshow_clock = false\n")
-            f.flush()
-            config = load_config(Path(f.name))
-            # Specified value loaded
-            assert config.timer.show_clock is False
-            # Other values should be defaults
-            assert config.display.theme == "dark"
-            assert config.behavior.auto_reload is True
+    def test_add_recent_file_deduplicates(self):
+        state = AppState()
+        state.add_recent_file("/path/to/file1.md")
+        state.add_recent_file("/path/to/file2.md")
+        state.add_recent_file("/path/to/file1.md")  # Re-add first file
+
+        assert len(state.recent_files) == 2
+        assert state.recent_files[0] == "/path/to/file1.md"
+
+    def test_add_recent_file_limits_size(self):
+        state = AppState()
+        for i in range(25):
+            state.add_recent_file(f"/path/to/file{i}.md")
+
+        assert len(state.recent_files) == 20  # Default max
+
+    def test_set_and_get_position(self):
+        state = AppState()
+        state.set_position("/path/to/file.md", 5)
+        assert state.get_position("/path/to/file.md") == 5
+        assert state.get_position("/unknown/file.md") == 0  # Default
 
 
 class TestAppStateEdgeCases:
@@ -302,24 +238,3 @@ class TestAppStateEdgeCases:
 
         # /a.md should now be first
         assert state.recent_files == ["/a.md", "/b.md"]
-
-
-class TestExportConfigValues:
-    """Tests for ExportConfig edge cases."""
-
-    def test_custom_size(self):
-        config = ExportConfig(default_size="120x40")
-        assert config.default_size == "120x40"
-
-
-class TestImageConfigValues:
-    """Tests for ImageConfig edge cases."""
-
-    def test_all_valid_modes(self):
-        for mode in ["auto", "kitty", "sixel", "iterm", "ascii", "none"]:
-            config = ImageConfig(mode=mode)
-            assert config.mode == mode
-
-    def test_custom_ascii_width(self):
-        config = ImageConfig(ascii_width=100)
-        assert config.ascii_width == 100
