@@ -346,13 +346,19 @@ def _parse_marp_image_directive(alt_text: str) -> _ImageDirectives:
     return result
 
 
-def clean_marp_directives(content: str) -> str:
+def clean_marp_directives(content: str, *, keep_divs: bool = False) -> str:
     """Remove MARP-specific directives that don't render in TUI.
 
     Cleans up:
     - MARP HTML comments (<!-- _class: ... -->, <!-- _header: ... -->, etc.)
     - MARP image directives (![bg ...])
     - Empty HTML divs with only styling
+    - All HTML divs (unless keep_divs=True for HTML export)
+
+    Args:
+        content: Slide content to clean.
+        keep_divs: If True, preserve structural divs (for HTML export).
+
     """
     # Remove MARP directive comments
     content = re.sub(r"<!--\s*_\w+:.*?-->\s*\n?", "", content)
@@ -363,9 +369,10 @@ def clean_marp_directives(content: str) -> str:
     # Remove empty divs with only style attributes
     content = re.sub(r'<div[^>]*style="[^"]*"[^>]*>\s*</div>\s*\n?', "", content)
 
-    # Remove inline HTML divs (keep the content)
-    content = re.sub(r"<div[^>]*>\s*\n?", "", content)
-    content = re.sub(r"\s*</div>", "", content)
+    if not keep_divs:
+        # Remove inline HTML divs (keep the content) - for TUI display
+        content = re.sub(r"<div[^>]*>\s*\n?", "", content)
+        content = re.sub(r"\s*</div>", "", content)
 
     # Clean up multiple blank lines
     return re.sub(r"\n{3,}", "\n\n", content)

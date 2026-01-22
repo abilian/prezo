@@ -16,7 +16,7 @@ from rich.panel import Panel
 from rich.style import Style
 from rich.text import Text
 
-from .parser import parse_presentation
+from .parser import clean_marp_directives, extract_notes, parse_presentation
 from .themes import get_theme
 
 # Export result types
@@ -48,7 +48,7 @@ SVG_FORMAT_NO_CHROME = """\
     }}
 
     .{unique_id}-matrix {{
-        font-family: Fira Code, monospace;
+        font-family: Fira Code, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", monospace;
         font-size: {char_height}px;
         line-height: {line_height}px;
         font-variant-east-asian: full-width;
@@ -148,6 +148,13 @@ def render_slide_to_svg(
         svg = console.export_svg(title=f"Slide {slide_num + 1}")
     else:
         svg = console.export_svg(code_format=SVG_FORMAT_NO_CHROME)
+
+    # Add emoji font fallbacks to font-family declarations
+    # Rich only specifies "Fira Code, monospace" which lacks emoji glyphs
+    svg = svg.replace(
+        "font-family: Fira Code, monospace",
+        'font-family: Fira Code, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", monospace',
+    )
 
     # Add background color to SVG (Rich doesn't set it by default)
     # Insert a rect element right after the opening svg tag
@@ -386,6 +393,16 @@ HTML_TEMPLATE = """\
             max-width: 100%;
             height: auto;
         }}
+        /* Multi-column layouts */
+        .columns {{
+            display: flex;
+            gap: 2rem;
+            align-items: flex-start;
+        }}
+        .columns > div {{
+            flex: 1;
+            min-width: 0;
+        }}
         .notes {{
             margin-top: 2rem;
             padding: 1rem;
@@ -500,7 +517,10 @@ def export_to_html(
     # Render each slide
     slides_html = []
     for i, slide in enumerate(presentation.slides):
-        content_html = render_slide_to_html(slide.content)
+        # Use raw_content and clean with keep_divs=True to preserve column layouts
+        slide_content, _ = extract_notes(slide.raw_content)
+        cleaned_content = clean_marp_directives(slide_content, keep_divs=True)
+        content_html = render_slide_to_html(cleaned_content)
 
         # Handle notes
         notes_html = ""
