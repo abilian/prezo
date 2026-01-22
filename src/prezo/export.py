@@ -16,6 +16,7 @@ from rich.panel import Panel
 from rich.style import Style
 from rich.text import Text
 
+from .layout import has_layout_blocks, parse_layout, render_layout
 from .parser import clean_marp_directives, extract_notes, parse_presentation
 from .themes import get_theme
 
@@ -113,13 +114,17 @@ def render_slide_to_svg(
     # Base style for the entire slide (background color)
     base_style = Style(color=theme.text, bgcolor=theme.background)
 
-    # Render the markdown content
-    md = Markdown(content)
+    # Render the content (with layout support)
+    if has_layout_blocks(content):
+        blocks = parse_layout(content)
+        slide_content = render_layout(blocks)
+    else:
+        slide_content = Markdown(content)
 
     # Create a panel with the slide content (height - 2 for status bar and padding)
     panel_height = height - 2
     panel = Panel(
-        md,
+        slide_content,
         title=f"[{theme.text_muted}]Slide {slide_num + 1}/{total_slides}[/]",
         title_align="right",
         border_style=Style(color=theme.primary),
