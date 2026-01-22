@@ -39,7 +39,7 @@ from .screens import (
 )
 from .terminal import ImageCapability, detect_image_capability
 from .themes import get_next_theme, get_theme
-from .widgets import ImageDisplay, StatusBar
+from .widgets import ImageDisplay, SlideContent, StatusBar
 
 WELCOME_MESSAGE = """\
 # Welcome to Prezo
@@ -389,7 +389,7 @@ class PrezoApp(App):
                             yield ImageDisplay(id="slide-image")
                         # Text container
                         with VerticalScroll(id="slide-container"):
-                            yield Markdown("", id="slide-content")
+                            yield SlideContent("", id="slide-content")
                 with Vertical(id="notes-panel"):
                     yield Static("Notes", id="notes-title")
                     yield Markdown("", id="notes-content")
@@ -519,7 +519,7 @@ class PrezoApp(App):
         recent_section = _format_recent_files(self.state.recent_files)
         if recent_section:
             welcome += recent_section
-        self.query_one("#slide-content", Markdown).update(welcome)
+        self.query_one("#slide-content", SlideContent).set_content(welcome)
         status = self.query_one("#status-bar", StatusBar)
         status.current = 0
         status.total = 1
@@ -591,7 +591,9 @@ class PrezoApp(App):
                 image_widget.clear()
 
         # Use cleaned content (bg images already removed by parser)
-        self.query_one("#slide-content", Markdown).update(slide.content.strip())
+        self.query_one("#slide-content", SlideContent).set_content(
+            slide.content.strip()
+        )
 
         container = self.query_one("#slide-container", VerticalScroll)
         container.scroll_home(animate=False)
