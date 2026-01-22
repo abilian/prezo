@@ -4,6 +4,25 @@ All notable changes to Prezo are documented in this file.
 
 Starting with version 2026.1.1, Prezo uses [CalVer](https://calver.org/) versioning (YYYY.M.patch).
 
+## [2026.1.2] - 2026-01-22
+
+### Added
+- **Column layouts** - Pandoc-style fenced div syntax for multi-column slides
+  - `::: columns` / `::: column` for side-by-side content
+  - Support for 2, 3, or more columns
+  - Variable column widths (`::: column 30` for 30% width)
+  - Works in TUI, PDF export, and HTML export
+- **Centered content** - `::: center` for horizontally centered text
+- New `SlideContent` widget with layout support
+- New `layout.py` module for parsing and rendering layouts
+- Demo presentation: `examples/columns_demo.md`
+
+### Changed
+- Test suite reorganized into test pyramid structure (a_unit, b_integration, c_e2e)
+
+### Fixed
+- Emoji characters now render correctly in PDF export (added emoji font fallbacks)
+
 ## [2026.1.1] - 2026-01-06
 
 ### Changed

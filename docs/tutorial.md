@@ -115,6 +115,81 @@ Code blocks support syntax highlighting for most languages.
 [Link text](https://example.com)
 ```
 
+## Column Layouts
+
+Prezo supports Pandoc-style fenced divs for creating multi-column layouts.
+
+### Two Columns
+
+```markdown
+::: columns
+::: column
+**Left Column**
+
+- First point
+- Second point
+:::
+
+::: column
+**Right Column**
+
+- Another point
+- More content
+:::
+:::
+```
+
+### Three or More Columns
+
+```markdown
+::: columns
+::: column
+Column 1
+:::
+::: column
+Column 2
+:::
+::: column
+Column 3
+:::
+:::
+```
+
+### Custom Column Widths
+
+Specify width as a percentage (values should sum to ~100):
+
+```markdown
+::: columns
+::: column 30
+Narrow column (30%)
+:::
+
+::: column 70
+Wide column (70%)
+:::
+:::
+```
+
+### Centered Content
+
+Use `::: center` to horizontally center content:
+
+```markdown
+::: center
+**This text is centered**
+
+A centered paragraph with important information.
+:::
+```
+
+### Layout Tips
+
+1. **Add blank lines** inside columns for proper paragraph spacing
+2. **Columns work with all Markdown** - lists, code blocks, tables, etc.
+3. **Layouts work in exports** - PDF, HTML, and PNG exports render columns correctly
+4. **Keep columns balanced** - Similar content length looks better
+
 ## Presenter Notes
 
 Add presenter notes that are only visible in the notes panel (press `p` to toggle). There are two syntax options:

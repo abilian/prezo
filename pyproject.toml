@@ -1,6 +1,6 @@
 [project]
 name = "prezo"
-version = "2026.1.1"
+version = "2026.1.2"
 description = "A TUI-based presentation tool for the terminal, built with Textual."
 readme = "README.md"
 authors = [

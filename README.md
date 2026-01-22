@@ -4,9 +4,10 @@ A TUI-based presentation tool for the terminal, built with [Textual](https://tex
 
 Display presentations written in Markdown using conventions similar to those of [MARP](https://marp.app/) or [Deckset](https://www.deckset.com/).
 
-## Features (v0.3)
+## Features
 
 - **Markdown presentations** - MARP/Deckset format with `---` slide separators
+- **Column layouts** - Pandoc-style fenced divs for multi-column slides (`::: columns`)
 - **Live reload** - Auto-refresh when file changes (1s polling)
 - **Keyboard navigation** - Vim-style keys, arrow keys, and more
 - **Slide overview** - Grid view for quick navigation (`o`)
@@ -118,12 +119,32 @@ Presenter notes go here (after ???)
 
 # Third Slide
 
+::: columns
+::: column
+**Left Column**
+- Point A
+- Point B
+:::
+
+::: column
+**Right Column**
+- Point C
+- Point D
+:::
+:::
+
+---
+
+# Fourth Slide
+
 <!-- notes: Alternative notes syntax -->
 
-More content...
+::: center
+**Centered content**
+:::
 ```
 
-See the [Writing Presentations in Markdown](docs/tutorial.md) tutorial for a complete guide on creating presentations, including images, presenter notes, and configuration directives.
+See the [Writing Presentations in Markdown](docs/tutorial.md) tutorial for a complete guide on creating presentations, including column layouts, images, presenter notes, and configuration directives.
 
 ## Themes
 
