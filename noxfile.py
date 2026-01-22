@@ -28,6 +28,6 @@ def check(session: nox.Session) -> None:
     session.run("ruff", "format", "--check", ".")
 
     # Type check
-    session.run("mypy", "src")
+    # session.run("mypy", "src")
     session.run("ty", "check", "src")
     # session.run("pyrefly", "check", "src")

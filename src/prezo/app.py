@@ -199,7 +199,7 @@ class PrezoApp(App):
 
     ENABLE_COMMAND_PALETTE = True
     COMMAND_PALETTE_BINDING = "ctrl+p"
-    COMMANDS: ClassVar[set[type[Provider]]] = {PrezoCommands}  # type: ignore[assignment]
+    COMMANDS: ClassVar[set[type[Provider]]] = {PrezoCommands}
 
     CSS = """
     Screen {
@@ -732,7 +732,7 @@ class PrezoApp(App):
     def watch_app_theme(self, theme_name: str) -> None:
         """Apply theme when it changes."""
         # Only apply to widgets after mount (watcher fires during init)
-        if not self.is_mounted:  # type: ignore[truthy-function]
+        if not self.is_mounted:
             return
         self._apply_theme(theme_name)
         self.notify(f"Theme: {theme_name}", timeout=1)

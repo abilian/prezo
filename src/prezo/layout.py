@@ -165,7 +165,7 @@ def _create_block(
         style = unquoted_arg if unquoted_arg else "single"
         block = LayoutBlock(type="divider", style=style)
     elif block_type in simple_types:
-        block = LayoutBlock(type=block_type, content=content)  # type: ignore[arg-type]
+        block = LayoutBlock(type=block_type, content=content)
     else:
         # Unknown block type - treat as plain
         block = LayoutBlock(type="plain", content=content)
