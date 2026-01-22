@@ -1,6 +1,13 @@
-# prezo Future Roadmap
+# Prezo Future Roadmap
 
-Features under consideration for future releases (v0.4.0+).
+Features under consideration for future releases.
+
+## Recently Completed
+
+### Column Layouts (2026.1.2) ✓
+- Pandoc-style fenced divs (`::: columns`, `::: column`, `::: center`)
+- Variable column widths
+- Works in TUI and all export formats
 
 ## Theming Enhancements
 
@@ -24,6 +31,17 @@ Custom styling for presentations using Textual CSS.
 - Custom fonts and colors
 
 ## Content Features
+
+### Layout Enhancements
+**Priority:** Low | **Complexity:** Medium
+
+Building on the column layout system.
+
+- Vertical alignment in columns (top/center/bottom)
+- Nested columns support
+- Column borders/separators
+- Grid layouts (N×M)
+- Responsive breakpoints for narrow terminals
 
 ### Better Table Rendering
 **Priority:** Low | **Complexity:** Medium
@@ -144,5 +162,5 @@ The following are explicitly out of scope:
 | Priority | Features |
 |----------|----------|
 | Medium | CSS-like Styling, Presenter View, Plugin System |
-| Low | Syntax Themes, Tables, Bookmarks, Reveal.js Export, Remote Control |
+| Low | Layout Enhancements, Syntax Themes, Tables, Bookmarks, Reveal.js Export, Remote Control |
 | Very Low | Annotations, PowerPoint Export, Collaborative Mode |

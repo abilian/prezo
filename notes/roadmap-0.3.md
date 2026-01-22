@@ -85,3 +85,23 @@ v0.3.0 is complete when:
 2. ✓ Command palette provides discoverability for all features
 3. ✓ Individual slides can be exported as PNG/SVG images
 4. ✓ Native image viewing works in supported terminals
+
+---
+
+## Post-0.3 Releases (CalVer: 2026.x.x)
+
+Starting with 2026.1.1, Prezo switched to CalVer versioning.
+
+### 2026.1.2
+
+**Column Layouts**
+- [x] Pandoc-style fenced div syntax (`::: columns`, `::: column`)
+- [x] Support for 2, 3, or more columns
+- [x] Variable column widths (`::: column 30` for 30%)
+- [x] Centered content (`::: center`)
+- [x] Layout support in TUI, PDF, and HTML export
+- [x] New `layout.py` module and `SlideContent` widget
+
+**Other**
+- [x] Test pyramid reorganization (a_unit, b_integration, c_e2e)
+- [x] Emoji font support in PDF export
