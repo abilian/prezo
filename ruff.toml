@@ -8,6 +8,7 @@ lint.extend-ignore = [
     # Later (or never)
     "CPY", # Copyright
     "TD",
+    "ERA",
 
     # False positive
     "S101", # Use of `assert` detected
