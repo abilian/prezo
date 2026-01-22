@@ -243,9 +243,7 @@ def _combine_svgs_to_pdf_chrome(svg_files: list[Path], output: Path) -> Path:
         from pypdf import PdfReader, PdfWriter  # noqa: PLC0415
     except ImportError as e:
         msg = "Required package not installed. Install with:\n  pip install pypdf"
-        raise ExportError(
-            msg
-        ) from e
+        raise ExportError(msg) from e
 
     pdf_pages: list[Path] = []
 
@@ -293,9 +291,7 @@ def _combine_svgs_to_pdf_inkscape(svg_files: list[Path], output: Path) -> Path:
         from pypdf import PdfReader, PdfWriter  # noqa: PLC0415
     except ImportError as e:
         msg = "Required package not installed. Install with:\n  pip install pypdf"
-        raise ExportError(
-            msg
-        ) from e
+        raise ExportError(msg) from e
 
     pdf_pages: list[Path] = []
 
@@ -347,9 +343,7 @@ def _combine_svgs_to_pdf_cairosvg(svg_files: list[Path], output: Path) -> Path:
             "Required packages not installed. Install with:\n"
             "  pip install cairosvg pypdf"
         )
-        raise ExportError(
-            msg
-        ) from e
+        raise ExportError(msg) from e
 
     # Warn about CairoSVG limitations
     print(
@@ -365,9 +359,7 @@ def _combine_svgs_to_pdf_cairosvg(svg_files: list[Path], output: Path) -> Path:
             pdf_bytes = _convert_svg_to_pdf_cairosvg(svg_file)
             if pdf_bytes is None:
                 msg = "CairoSVG not installed. Install with:\n  pip install cairosvg"
-                raise ExportError(
-                    msg
-                )
+                raise ExportError(msg)
             pdf_pages.append(io.BytesIO(pdf_bytes))
 
         writer = PdfWriter()

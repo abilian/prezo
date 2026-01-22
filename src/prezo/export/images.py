@@ -75,9 +75,7 @@ def export_slide_to_image(
         import cairosvg  # noqa: PLC0415
     except ImportError as e:
         msg = "PNG export requires cairosvg.\nInstall with: pip install prezo[export]"
-        raise ExportError(
-            msg
-        ) from e
+        raise ExportError(msg) from e
 
     try:
         png_data = cairosvg.svg2png(
@@ -151,9 +149,7 @@ def export_to_images(
                 f"Invalid slide number: {slide_num}. "
                 f"Presentation has {presentation.total_slides} slides."
             )
-            raise ExportError(
-                msg
-            )
+            raise ExportError(msg)
 
         slide_idx = slide_num - 1
         slide = presentation.slides[slide_idx]
