@@ -74,7 +74,7 @@ class TestExportToPdf:
         source.write_text("")
         output = tmp_path / "empty.pdf"
 
-        with patch("prezo.export.combine_svgs_to_pdf") as mock_combine:
+        with patch("prezo.export.pdf.combine_svgs_to_pdf") as mock_combine:
             mock_combine.return_value = (EXPORT_SUCCESS, "Exported")
             code, _msg = export_to_pdf(source, output)
 
@@ -86,7 +86,7 @@ class TestExportToPdf:
         source.write_text("# Test Slide")
         output = tmp_path / "custom_name.pdf"
 
-        with patch("prezo.export.combine_svgs_to_pdf") as mock_combine:
+        with patch("prezo.export.pdf.combine_svgs_to_pdf") as mock_combine:
             mock_combine.return_value = (EXPORT_SUCCESS, "Exported")
             _code, _msg = export_to_pdf(source, output)
 
@@ -99,7 +99,7 @@ class TestExportToPdf:
         source.write_text("# Slide 1\n\n---\n\n# Slide 2\n\n---\n\n# Slide 3")
         output = tmp_path / "multi.pdf"
 
-        with patch("prezo.export.combine_svgs_to_pdf") as mock_combine:
+        with patch("prezo.export.pdf.combine_svgs_to_pdf") as mock_combine:
             mock_combine.return_value = (EXPORT_SUCCESS, "Exported")
             _code, _msg = export_to_pdf(source, output)
 

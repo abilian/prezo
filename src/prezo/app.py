@@ -555,35 +555,27 @@ class PrezoApp(App):
                 image_container.add_class("visible")
 
                 # Apply layout based on MARP directive
-                layout = first_image.layout
-                if layout == "left":
-                    image_container.add_class("layout-left")
-                    # Ensure image is before text
-                    horizontal_container.move_child(
-                        image_container, before=slide_container
-                    )
-                elif layout == "right":
-                    image_container.add_class("layout-right")
-                    # Move image after text
-                    horizontal_container.move_child(
-                        image_container, after=slide_container
-                    )
-                elif layout == "inline":
-                    image_container.add_class("layout-inline")
-                    horizontal_container.move_child(
-                        image_container, before=slide_container
-                    )
-                elif layout in ("background", "fit"):
-                    # Background/fit images: show image full width behind/above text
-                    image_container.add_class("layout-inline")
-                    horizontal_container.move_child(
-                        image_container, before=slide_container
-                    )
+                match first_image.layout:
+                    case "left":
+                        image_container.add_class("layout-left")
+                        horizontal_container.move_child(
+                            image_container, before=slide_container
+                        )
+                    case "right":
+                        image_container.add_class("layout-right")
+                        horizontal_container.move_child(
+                            image_container, after=slide_container
+                        )
+                    case "inline" | "background" | "fit":
+                        image_container.add_class("layout-inline")
+                        horizontal_container.move_child(
+                            image_container, before=slide_container
+                        )
 
                 # Apply dynamic width if size_percent is specified
                 default_size = 50
                 has_custom_size = first_image.size_percent != default_size
-                if has_custom_size and layout in ("left", "right"):
+                if has_custom_size and first_image.layout in ("left", "right"):
                     image_container.styles.width = f"{first_image.size_percent}%"
                 else:
                     image_container.styles.width = None  # Reset to CSS default

@@ -7,6 +7,7 @@ lint.select = [
 lint.extend-ignore = [
     # Later (or never)
     "CPY", # Copyright
+    "TD",
 
     # False positive
     "S101", # Use of `assert` detected
@@ -38,6 +39,7 @@ lint.extend-ignore = [
     # "TC002", # type-checking import - Textual uses these at runtime
     "PERF401", # list comprehension - explicit append loop is clearer
     "RUF003",
+    "E501",
 ]
 
 [lint.extend-per-file-ignores]
