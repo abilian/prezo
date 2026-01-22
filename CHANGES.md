@@ -13,9 +13,14 @@ Starting with version 2026.1.1, Prezo uses [CalVer](https://calver.org/) version
   - Variable column widths (`::: column 30` for 30% width)
   - Works in TUI, PDF export, and HTML export
 - **Centered content** - `::: center` for horizontally centered text
+- **Right-aligned content** - `::: right` for right-aligned text (attributions, signatures)
+- **Vertical spacing** - `::: spacer [n]` for adding blank lines (default 1)
+- **Bordered panels** - `::: box [title]` for content in bordered boxes
+- **Horizontal dividers** - `::: divider [style]` with styles: single, double, thick, dashed
+- **Nested layout blocks** - Layout blocks can be nested inside columns
 - New `SlideContent` widget with layout support
 - New `layout.py` module for parsing and rendering layouts
-- Demo presentation: `examples/columns_demo.md`
+- Demo presentations: `examples/columns_demo.md`, `examples/layout_demo.md`
 
 ### Changed
 - Test suite reorganized into test pyramid structure (a_unit, b_integration, c_e2e)

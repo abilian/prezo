@@ -271,6 +271,21 @@ class TestVisibleLength:
         text = "\x1b[1;31;42mStyled\x1b[0m Normal"
         assert _visible_length(text) == 13  # "Styled Normal"
 
+    def test_wide_characters_cjk(self):
+        # CJK characters take 2 cells each
+        assert _visible_length("日本語") == 6  # 3 chars × 2 cells
+        assert _visible_length("中文") == 4  # 2 chars × 2 cells
+        assert _visible_length("한글") == 4  # 2 chars × 2 cells
+
+    def test_wide_characters_emoji(self):
+        # Emoji typically takes 2 cells
+        assert _visible_length("👍") == 2
+        assert _visible_length("Hello 👋") == 8  # 6 + 2
+
+    def test_mixed_width_characters(self):
+        # Mix of regular and wide characters
+        assert _visible_length("AB日本CD") == 8  # 2 + 4 + 2
+
 
 class TestLayoutBlockDataclass:
     """Tests for LayoutBlock dataclass."""
@@ -396,3 +411,441 @@ class TestColumnsRenderable:
         merged = renderer._merge_columns(col_outputs, widths)
 
         assert len(merged) == 3  # Should match longest column
+
+
+# =============================================================================
+# Tests for new layout block types: right, spacer, box, divider
+# =============================================================================
+
+
+class TestParseRightBlock:
+    """Tests for ::: right block parsing."""
+
+    def test_simple_right(self):
+        content = """::: right
+Right-aligned text
+:::"""
+        blocks = parse_layout(content)
+
+        assert len(blocks) == 1
+        assert blocks[0].type == "right"
+        assert "Right-aligned text" in blocks[0].content
+
+    def test_right_with_markdown(self):
+        content = """::: right
+**Attribution**
+
+— Author Name
+:::"""
+        blocks = parse_layout(content)
+
+        assert len(blocks) == 1
+        assert blocks[0].type == "right"
+        assert "**Attribution**" in blocks[0].content
+
+
+class TestParseSpacerBlock:
+    """Tests for ::: spacer block parsing."""
+
+    def test_simple_spacer(self):
+        content = """::: spacer
+:::"""
+        blocks = parse_layout(content)
+
+        assert len(blocks) == 1
+        assert blocks[0].type == "spacer"
+        # Default is 1 line
+        assert blocks[0].width_percent == 1
+
+    def test_spacer_with_count(self):
+        content = """::: spacer 3
+:::"""
+        blocks = parse_layout(content)
+
+        assert len(blocks) == 1
+        assert blocks[0].type == "spacer"
+        assert blocks[0].width_percent == 3
+
+    def test_spacer_with_large_count(self):
+        content = """::: spacer 10
+:::"""
+        blocks = parse_layout(content)
+
+        assert len(blocks) == 1
+        assert blocks[0].width_percent == 10
+
+
+class TestParseBoxBlock:
+    """Tests for ::: box block parsing."""
+
+    def test_simple_box(self):
+        content = """::: box
+Content in a box
+:::"""
+        blocks = parse_layout(content)
+
+        assert len(blocks) == 1
+        assert blocks[0].type == "box"
+        assert "Content in a box" in blocks[0].content
+        assert blocks[0].title == ""
+
+    def test_box_with_quoted_title(self):
+        content = """::: box "My Title"
+Content here
+:::"""
+        blocks = parse_layout(content)
+
+        assert len(blocks) == 1
+        assert blocks[0].type == "box"
+        assert blocks[0].title == "My Title"
+        assert "Content here" in blocks[0].content
+
+    def test_box_with_unquoted_title(self):
+        content = """::: box Features
+- Feature 1
+- Feature 2
+:::"""
+        blocks = parse_layout(content)
+
+        assert len(blocks) == 1
+        assert blocks[0].type == "box"
+        assert blocks[0].title == "Features"
+
+    def test_box_with_markdown_content(self):
+        content = """::: box "Important"
+## Header
+
+- Bullet 1
+- Bullet 2
+
+**Bold text**
+:::"""
+        blocks = parse_layout(content)
+
+        assert len(blocks) == 1
+        assert blocks[0].type == "box"
+        assert "## Header" in blocks[0].content
+        assert "**Bold text**" in blocks[0].content
+
+
+class TestParseDividerBlock:
+    """Tests for ::: divider block parsing."""
+
+    def test_simple_divider(self):
+        content = """::: divider
+:::"""
+        blocks = parse_layout(content)
+
+        assert len(blocks) == 1
+        assert blocks[0].type == "divider"
+        assert blocks[0].style == "single"
+
+    def test_divider_single(self):
+        content = """::: divider single
+:::"""
+        blocks = parse_layout(content)
+
+        assert len(blocks) == 1
+        assert blocks[0].style == "single"
+
+    def test_divider_double(self):
+        content = """::: divider double
+:::"""
+        blocks = parse_layout(content)
+
+        assert len(blocks) == 1
+        assert blocks[0].style == "double"
+
+    def test_divider_thick(self):
+        content = """::: divider thick
+:::"""
+        blocks = parse_layout(content)
+
+        assert len(blocks) == 1
+        assert blocks[0].style == "thick"
+
+    def test_divider_dashed(self):
+        content = """::: divider dashed
+:::"""
+        blocks = parse_layout(content)
+
+        assert len(blocks) == 1
+        assert blocks[0].style == "dashed"
+
+
+class TestRenderNewBlocks:
+    """Tests for rendering new block types."""
+
+    def test_render_right(self):
+        blocks = [LayoutBlock(type="right", content="Right text")]
+        renderable = render_layout(blocks)
+        assert renderable is not None
+
+    def test_render_spacer(self):
+        blocks = [LayoutBlock(type="spacer", width_percent=2)]
+        renderable = render_layout(blocks)
+        assert renderable is not None
+
+    def test_render_box(self):
+        blocks = [LayoutBlock(type="box", content="Box content", title="Title")]
+        renderable = render_layout(blocks)
+        assert renderable is not None
+
+    def test_render_box_no_title(self):
+        blocks = [LayoutBlock(type="box", content="Box content")]
+        renderable = render_layout(blocks)
+        assert renderable is not None
+
+    def test_render_divider(self):
+        blocks = [LayoutBlock(type="divider", style="single")]
+        renderable = render_layout(blocks)
+        assert renderable is not None
+
+    def test_render_divider_styles(self):
+        for style in ["single", "double", "thick", "dashed"]:
+            blocks = [LayoutBlock(type="divider", style=style)]
+            renderable = render_layout(blocks)
+            assert renderable is not None
+
+
+class TestNewRenderables:
+    """Tests for new renderable classes."""
+
+    def test_right_renderable(self):
+        from prezo.layout import RightRenderable
+
+        renderer = RightRenderable("Right content")
+        assert renderer.content == "Right content"
+
+    def test_spacer_renderable_default(self):
+        from prezo.layout import SpacerRenderable
+
+        renderer = SpacerRenderable()
+        assert renderer.lines == 1
+
+    def test_spacer_renderable_custom(self):
+        from prezo.layout import SpacerRenderable
+
+        renderer = SpacerRenderable(5)
+        assert renderer.lines == 5
+
+    def test_spacer_renderable_minimum(self):
+        from prezo.layout import SpacerRenderable
+
+        renderer = SpacerRenderable(0)
+        assert renderer.lines == 1  # Minimum is 1
+
+        renderer = SpacerRenderable(-5)
+        assert renderer.lines == 1  # Negative becomes 1
+
+    def test_box_renderable(self):
+        from prezo.layout import BoxRenderable
+
+        renderer = BoxRenderable("Content", "Title")
+        assert renderer.content == "Content"
+        assert renderer.title == "Title"
+
+    def test_box_renderable_no_title(self):
+        from prezo.layout import BoxRenderable
+
+        renderer = BoxRenderable("Content")
+        assert renderer.content == "Content"
+        assert renderer.title == ""
+
+    def test_divider_renderable_default(self):
+        from prezo.layout import DividerRenderable
+
+        renderer = DividerRenderable()
+        assert renderer.style == "single"
+
+    def test_divider_renderable_styles(self):
+        from prezo.layout import DividerRenderable
+
+        for style in ["single", "double", "thick", "dashed"]:
+            renderer = DividerRenderable(style)
+            assert renderer.style == style
+
+    def test_divider_renderable_invalid_style(self):
+        from prezo.layout import DividerRenderable
+
+        renderer = DividerRenderable("invalid")
+        assert renderer.style == "single"  # Falls back to default
+
+
+class TestMixedNewBlocks:
+    """Tests for mixing new block types with existing ones."""
+
+    def test_columns_with_divider(self):
+        content = """::: columns
+::: column
+Left
+:::
+::: column
+Right
+:::
+:::
+
+::: divider
+:::
+
+More content"""
+        blocks = parse_layout(content)
+
+        assert len(blocks) == 3
+        assert blocks[0].type == "columns"
+        assert blocks[1].type == "divider"
+        assert blocks[2].type == "plain"
+
+    def test_box_in_sequence(self):
+        content = """Introduction
+
+::: box "Features"
+- Feature 1
+- Feature 2
+:::
+
+::: spacer 2
+:::
+
+::: box "Benefits"
+- Benefit 1
+:::"""
+        blocks = parse_layout(content)
+
+        assert len(blocks) == 4
+        assert blocks[0].type == "plain"
+        assert blocks[1].type == "box"
+        assert blocks[1].title == "Features"
+        assert blocks[2].type == "spacer"
+        assert blocks[3].type == "box"
+
+    def test_right_attribution(self):
+        content = """::: center
+# Quote
+
+"The best way to predict the future is to invent it."
+:::
+
+::: right
+— Alan Kay
+:::"""
+        blocks = parse_layout(content)
+
+        assert len(blocks) == 2
+        assert blocks[0].type == "center"
+        assert blocks[1].type == "right"
+        assert "Alan Kay" in blocks[1].content
+
+
+class TestLayoutBlockExtendedDataclass:
+    """Tests for extended LayoutBlock fields."""
+
+    def test_title_field(self):
+        block = LayoutBlock(type="box", title="My Title")
+        assert block.title == "My Title"
+
+    def test_style_field(self):
+        block = LayoutBlock(type="divider", style="double")
+        assert block.style == "double"
+
+    def test_default_title(self):
+        block = LayoutBlock(type="box")
+        assert block.title == ""
+
+    def test_default_style(self):
+        block = LayoutBlock(type="divider")
+        assert block.style == ""
+
+
+class TestNestedLayoutBlocks:
+    """Tests for nested layout blocks within columns."""
+
+    def test_box_inside_column(self):
+        """Test that box blocks inside columns are parsed correctly."""
+        content = """::: columns
+::: column
+::: box "Title"
+Content
+:::
+:::
+::: column
+Other content
+:::
+:::"""
+        blocks = parse_layout(content)
+
+        assert len(blocks) == 1
+        assert blocks[0].type == "columns"
+        # The column content contains the raw box syntax
+        col1_content = blocks[0].children[0].content
+        assert "::: box" in col1_content
+
+    def test_nested_blocks_render(self):
+        """Test that nested layout blocks render without error."""
+        from rich.console import Console
+
+        from prezo.layout import ColumnsRenderable
+
+        # Column with nested box
+        columns = [
+            LayoutBlock(
+                type="column",
+                content="""::: box "Features"
+- Item 1
+- Item 2
+:::""",
+            ),
+            LayoutBlock(type="column", content="Plain content"),
+        ]
+        renderer = ColumnsRenderable(columns, gap=2)
+
+        # Should render without error
+        console = Console(width=80, force_terminal=True)
+        # Consume the generator to trigger rendering
+        list(renderer.__rich_console__(console, console.options))
+
+    def test_divider_inside_column(self):
+        """Test divider inside column renders correctly."""
+        from rich.console import Console
+
+        from prezo.layout import ColumnsRenderable
+
+        columns = [
+            LayoutBlock(
+                type="column",
+                content="""Header
+
+::: divider
+:::
+
+Footer""",
+            ),
+        ]
+        renderer = ColumnsRenderable(columns, gap=2)
+        console = Console(width=40, force_terminal=True)
+        list(renderer.__rich_console__(console, console.options))
+
+    def test_multiple_nested_blocks(self):
+        """Test multiple nested blocks in a column."""
+        from rich.console import Console
+
+        from prezo.layout import ColumnsRenderable
+
+        columns = [
+            LayoutBlock(
+                type="column",
+                content="""::: box "Box 1"
+Content 1
+:::
+
+::: spacer
+:::
+
+::: box "Box 2"
+Content 2
+:::""",
+            ),
+        ]
+        renderer = ColumnsRenderable(columns, gap=2)
+        console = Console(width=60, force_terminal=True)
+        list(renderer.__rich_console__(console, console.options))

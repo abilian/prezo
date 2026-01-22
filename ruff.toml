@@ -37,6 +37,7 @@ lint.extend-ignore = [
     # "TC003", # type-checking import - not needed for protocol definitions
     # "TC002", # type-checking import - Textual uses these at runtime
     "PERF401", # list comprehension - explicit append loop is clearer
+    "RUF003",
 ]
 
 [lint.extend-per-file-ignores]

@@ -129,6 +129,13 @@ def main() -> None:
         help="Export without window decorations (for printing)",
     )
     parser.add_argument(
+        "--pdf-backend",
+        metavar="BACKEND",
+        choices=["auto", "chrome", "inkscape", "cairosvg"],
+        default="auto",
+        help="PDF conversion backend (auto, chrome, inkscape, cairosvg). Default: auto",
+    )
+    parser.add_argument(
         "--scale",
         metavar="FACTOR",
         type=float,
@@ -218,6 +225,7 @@ def main() -> None:
                     width=width,
                     height=height,
                     chrome=not args.no_chrome,
+                    pdf_backend=args.pdf_backend,
                 ),
             )
     else:

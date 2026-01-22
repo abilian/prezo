@@ -183,6 +183,79 @@ A centered paragraph with important information.
 :::
 ```
 
+### Right-Aligned Content
+
+Use `::: right` for right-aligned text (useful for attributions):
+
+```markdown
+::: right
+— Author Name, 2026
+:::
+```
+
+### Vertical Spacing
+
+Use `::: spacer` to add vertical space between elements:
+
+```markdown
+Content above
+
+::: spacer 2
+:::
+
+Content below (with 2 lines of space)
+```
+
+### Bordered Panels
+
+Use `::: box` to wrap content in a bordered panel:
+
+```markdown
+::: box "Features"
+- Feature one
+- Feature two
+- Feature three
+:::
+```
+
+The title is optional - you can also use `::: box` without a title.
+
+### Horizontal Dividers
+
+Use `::: divider` to add horizontal rules between sections:
+
+```markdown
+::: divider
+:::
+```
+
+Available styles: `single` (default), `double`, `thick`, `dashed`:
+
+```markdown
+::: divider double
+:::
+```
+
+### Nested Layout Blocks
+
+Layout blocks can be nested inside columns:
+
+```markdown
+::: columns
+::: column
+::: box "Pro"
+- Fast
+- Simple
+:::
+:::
+::: column
+::: box "Con"
+- Learning curve
+:::
+:::
+:::
+```
+
 ### Layout Tips
 
 1. **Add blank lines** inside columns for proper paragraph spacing

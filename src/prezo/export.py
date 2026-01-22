@@ -2,11 +2,19 @@
 
 Exports presentations to PDF and HTML formats, using Rich's console
 rendering for PDF and custom HTML templates for web viewing.
+
+IMPORTANT: PDF/PNG/SVG export must be a faithful image of the TUI console.
+This requires proper monospace font loading. If Fira Code is not available,
+alignment may be incorrect.
 """
 
 from __future__ import annotations
 
 import io
+import re
+import shutil
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -23,6 +31,64 @@ from .themes import get_theme
 # Export result types
 EXPORT_SUCCESS = 0
 EXPORT_FAILED = 2
+
+
+def check_font_availability() -> list[str]:
+    """Check if required fonts are available on the system.
+
+    Returns a list of warning messages (empty if all fonts are available).
+    """
+    warnings = []
+
+    # Check for fc-list (fontconfig) to query system fonts
+    fc_list_path = shutil.which("fc-list")
+    if fc_list_path:
+        try:
+            result = subprocess.run(
+                [fc_list_path, ":family"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+            fonts = result.stdout.lower()
+
+            # Check for Fira Code (primary monospace font)
+            if "fira code" not in fonts and "firacode" not in fonts:
+                warnings.append(
+                    "Fira Code font not found. Install it for best results:\n"
+                    "  macOS: brew install --cask font-fira-code\n"
+                    "  Ubuntu: sudo apt install fonts-firacode\n"
+                    "  Or download from: https://github.com/tonsky/FiraCode"
+                )
+
+        except (subprocess.TimeoutExpired, subprocess.SubprocessError):
+            # Can't check fonts, skip warning
+            pass
+    else:
+        # No fontconfig available (Windows or minimal system)
+        # We can't easily check fonts, so just note the requirement
+        warnings.append(
+            "Cannot verify font availability. For correct alignment, ensure "
+            "Fira Code font is installed."
+        )
+
+    return warnings
+
+
+def print_font_warnings(warnings: list[str]) -> None:
+    """Print font warnings to stderr."""
+    if warnings:
+        print("\n⚠️  Font Warning:", file=sys.stderr)
+        for warning in warnings:
+            for line in warning.split("\n"):
+                print(f"   {line}", file=sys.stderr)
+        print(
+            "\n   Without proper fonts, column alignment may be incorrect in exports.",
+            file=sys.stderr,
+        )
+        print(file=sys.stderr)
+
 
 # SVG template without window chrome (for printing)
 # Uses Rich's template format: {var} for substitution, {{ }} for literal braces
@@ -53,6 +119,17 @@ SVG_FORMAT_NO_CHROME = """\
         font-size: {char_height}px;
         line-height: {line_height}px;
         font-variant-east-asian: full-width;
+        /* Disable ligatures and ensure consistent character widths */
+        font-feature-settings: "liga" 0, "calt" 0, "dlig" 0;
+        font-variant-ligatures: none;
+        letter-spacing: 0;
+        word-spacing: 0;
+        white-space: pre;
+    }}
+
+    .{unique_id}-matrix text {{
+        /* Force uniform character spacing for box-drawing chars */
+        text-rendering: geometricPrecision;
     }}
 
     {styles}
@@ -170,19 +247,314 @@ def render_slide_to_svg(
     )
 
 
-def combine_svgs_to_pdf(svg_files: list[Path], output: Path) -> tuple[int, str]:
+def _find_chrome() -> str | None:
+    """Find Chrome/Chromium executable.
+
+    Returns:
+        Path to Chrome executable, or None if not found.
+
+    """
+    # Try common Chrome executable names
+    for name in ["chromium", "google-chrome", "chrome", "google-chrome-stable"]:
+        path = shutil.which(name)
+        if path:
+            return path
+
+    # macOS application paths
+    mac_paths = [
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    ]
+    for path in mac_paths:
+        if Path(path).exists():
+            return path
+
+    return None
+
+
+def _convert_svg_to_pdf_chrome(svg_file: Path, pdf_file: Path) -> bool:
+    """Convert a single SVG to PDF using Chrome headless.
+
+    Args:
+        svg_file: Path to SVG file.
+        pdf_file: Path for output PDF.
+
+    Returns:
+        True if successful, False otherwise.
+
+    """
+    chrome = _find_chrome()
+    if not chrome:
+        return False
+
+    # Read SVG and get dimensions from viewBox
+    svg_content = svg_file.read_text()
+    match = re.search(r'viewBox="0 0 ([\d.]+) ([\d.]+)"', svg_content)
+    if match:
+        width = int(float(match.group(1)))
+        height = int(float(match.group(2)))
+    else:
+        width, height = 994, 612
+
+    # Create HTML wrapper with proper page size
+    # overflow:hidden prevents extra blank pages from slight size mismatches
+    html_content = f"""<!DOCTYPE html>
+<html>
+<head>
+<style>
+  @page {{ margin: 0; size: {width}px {height}px; }}
+  html, body {{ margin: 0; padding: 0; overflow: hidden; height: {height}px; width: {width}px; }}
+  svg {{ display: block; }}
+</style>
+</head>
+<body>
+{svg_content}
+</body>
+</html>"""
+
+    # Write HTML to temp file
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".html", delete=False
+    ) as html_file:
+        html_file.write(html_content)
+        html_path = Path(html_file.name)
+
+    try:
+        result = subprocess.run(
+            [
+                chrome,
+                "--headless",
+                "--disable-gpu",
+                "--password-store=basic",
+                "--use-mock-keychain",
+                f"--print-to-pdf={pdf_file}",
+                "--no-pdf-header-footer",
+                str(html_path),
+            ],
+            capture_output=True,
+            timeout=60,
+            check=False,
+        )
+        return result.returncode == 0 and pdf_file.exists()
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError):
+        return False
+    finally:
+        html_path.unlink(missing_ok=True)
+
+
+def _convert_svg_to_pdf_inkscape(svg_file: Path, pdf_file: Path) -> bool:
+    """Convert a single SVG to PDF using Inkscape.
+
+    Args:
+        svg_file: Path to SVG file.
+        pdf_file: Path for output PDF.
+
+    Returns:
+        True if successful, False otherwise.
+
+    """
+    inkscape = shutil.which("inkscape")
+    if not inkscape:
+        return False
+
+    try:
+        result = subprocess.run(
+            [
+                inkscape,
+                str(svg_file),
+                f"--export-filename={pdf_file}",
+                "--export-type=pdf",
+            ],
+            capture_output=True,
+            timeout=60,
+            check=False,
+        )
+        return result.returncode == 0 and pdf_file.exists()
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError):
+        return False
+
+
+def _convert_svg_to_pdf_cairosvg(svg_file: Path) -> bytes | None:
+    """Convert a single SVG to PDF using CairoSVG.
+
+    Args:
+        svg_file: Path to SVG file.
+
+    Returns:
+        PDF bytes if successful, None otherwise.
+
+    """
+    try:
+        import cairosvg  # noqa: PLC0415
+    except ImportError:
+        return None
+
+    # CairoSVG doesn't properly support textLength, so we strip it
+    svg_content = svg_file.read_text()
+    svg_content = re.sub(r'\s*textLength="[^"]*"', "", svg_content)
+    svg_content = re.sub(r'\s*lengthAdjust="[^"]*"', "", svg_content)
+
+    return cairosvg.svg2pdf(bytestring=svg_content.encode("utf-8"))
+
+
+def _select_pdf_backend(backend: str) -> tuple[str, str | None]:
+    """Select the PDF backend to use.
+
+    Args:
+        backend: Requested backend ("auto", "chrome", "inkscape", "cairosvg")
+
+    Returns:
+        Tuple of (selected_backend, error_message). Error is None if OK.
+
+    """
+    checks = {
+        "chrome": (
+            _find_chrome,
+            "Chrome/Chromium not found. Install it or use a different backend.",
+        ),
+        "inkscape": (
+            lambda: shutil.which("inkscape"),
+            "Inkscape not found. Install it or use --pdf-backend=cairosvg",
+        ),
+    }
+
+    if backend in checks:
+        check_fn, error_msg = checks[backend]
+        return (backend, None) if check_fn() else ("", error_msg)
+
+    if backend == "cairosvg":
+        return "cairosvg", None
+
+    # auto: prefer Chrome > Inkscape > CairoSVG
+    for name, (check_fn, _) in checks.items():
+        if check_fn():
+            return name, None
+    return "cairosvg", None
+
+
+def combine_svgs_to_pdf(
+    svg_files: list[Path], output: Path, *, backend: str = "auto"
+) -> tuple[int, str]:
     """Combine multiple SVG files into a single PDF.
 
     Args:
         svg_files: List of paths to SVG files
         output: Output PDF path
+        backend: PDF conversion backend ("auto", "chrome", "inkscape", "cairosvg")
 
     Returns:
         Tuple of (exit_code, message)
 
     """
+    selected, error = _select_pdf_backend(backend)
+    if error:
+        return EXPORT_FAILED, error
+
+    if selected == "chrome":
+        return _combine_svgs_to_pdf_chrome(svg_files, output)
+    if selected == "inkscape":
+        return _combine_svgs_to_pdf_inkscape(svg_files, output)
+    return _combine_svgs_to_pdf_cairosvg(svg_files, output)
+
+
+def _combine_svgs_to_pdf_chrome(svg_files: list[Path], output: Path) -> tuple[int, str]:
+    """Combine SVGs to PDF using Chrome headless."""
     try:
-        import cairosvg  # noqa: PLC0415
+        from pypdf import PdfReader, PdfWriter  # noqa: PLC0415
+    except ImportError:
+        return EXPORT_FAILED, (
+            "Required package not installed. Install with:\n  pip install pypdf"
+        )
+
+    pdf_pages: list[Path] = []
+
+    try:
+        for svg_file in svg_files:
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                pdf_path = Path(tmp.name)
+
+            if not _convert_svg_to_pdf_chrome(svg_file, pdf_path):
+                for p in pdf_pages:
+                    p.unlink(missing_ok=True)
+                return EXPORT_FAILED, "Chrome PDF conversion failed"
+
+            pdf_pages.append(pdf_path)
+
+        # Combine all pages
+        writer = PdfWriter()
+        for pdf_path in pdf_pages:
+            reader = PdfReader(pdf_path)
+            for page in reader.pages:
+                writer.add_page(page)
+
+        with open(output, "wb") as f:
+            writer.write(f)
+
+        # Clean up temp files
+        for p in pdf_pages:
+            p.unlink(missing_ok=True)
+
+        return EXPORT_SUCCESS, f"Exported {len(svg_files)} slides to {output}"
+
+    except Exception as e:
+        for p in pdf_pages:
+            p.unlink(missing_ok=True)
+        return EXPORT_FAILED, f"PDF generation failed: {e}"
+
+
+def _combine_svgs_to_pdf_inkscape(
+    svg_files: list[Path], output: Path
+) -> tuple[int, str]:
+    """Combine SVGs to PDF using Inkscape."""
+    try:
+        from pypdf import PdfReader, PdfWriter  # noqa: PLC0415
+    except ImportError:
+        return EXPORT_FAILED, (
+            "Required package not installed. Install with:\n  pip install pypdf"
+        )
+
+    pdf_pages: list[Path] = []
+
+    try:
+        for svg_file in svg_files:
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                pdf_path = Path(tmp.name)
+
+            if not _convert_svg_to_pdf_inkscape(svg_file, pdf_path):
+                # Clean up and fail
+                for p in pdf_pages:
+                    p.unlink(missing_ok=True)
+                return EXPORT_FAILED, "Inkscape conversion failed"
+
+            pdf_pages.append(pdf_path)
+
+        # Combine all pages
+        writer = PdfWriter()
+        for pdf_path in pdf_pages:
+            reader = PdfReader(pdf_path)
+            for page in reader.pages:
+                writer.add_page(page)
+
+        with open(output, "wb") as f:
+            writer.write(f)
+
+        # Clean up temp files
+        for p in pdf_pages:
+            p.unlink(missing_ok=True)
+
+        return EXPORT_SUCCESS, f"Exported {len(svg_files)} slides to {output}"
+
+    except Exception as e:
+        for p in pdf_pages:
+            p.unlink(missing_ok=True)
+        return EXPORT_FAILED, f"PDF generation failed: {e}"
+
+
+def _combine_svgs_to_pdf_cairosvg(
+    svg_files: list[Path], output: Path
+) -> tuple[int, str]:
+    """Combine SVGs to PDF using CairoSVG."""
+    try:
         from pypdf import PdfReader, PdfWriter  # noqa: PLC0415
     except ImportError:
         return EXPORT_FAILED, (
@@ -190,23 +562,30 @@ def combine_svgs_to_pdf(svg_files: list[Path], output: Path) -> tuple[int, str]:
             "  pip install cairosvg pypdf"
         )
 
+    # Warn about CairoSVG limitations
+    print(
+        "⚠️  Using CairoSVG backend. For better alignment, install Inkscape "
+        "or use --pdf-backend=inkscape",
+        file=sys.stderr,
+    )
+
     pdf_pages = []
 
     try:
-        # Convert each SVG to a PDF page
         for svg_file in svg_files:
-            pdf_bytes = cairosvg.svg2pdf(url=str(svg_file))
-            assert pdf_bytes is not None
+            pdf_bytes = _convert_svg_to_pdf_cairosvg(svg_file)
+            if pdf_bytes is None:
+                return EXPORT_FAILED, (
+                    "CairoSVG not installed. Install with:\n  pip install cairosvg"
+                )
             pdf_pages.append(io.BytesIO(pdf_bytes))
 
-        # Combine all pages into one PDF
         writer = PdfWriter()
         for page_io in pdf_pages:
             reader = PdfReader(page_io)
             for page in reader.pages:
                 writer.add_page(page)
 
-        # Write the combined PDF
         with open(output, "wb") as f:
             writer.write(f)
 
@@ -224,6 +603,7 @@ def export_to_pdf(
     width: int = 80,
     height: int = 24,
     chrome: bool = True,
+    pdf_backend: str = "auto",
 ) -> tuple[int, str]:
     """Export presentation to PDF matching TUI appearance.
 
@@ -234,6 +614,7 @@ def export_to_pdf(
         width: Console width in characters
         height: Console height in lines
         chrome: If True, include window decorations; if False, plain output for printing
+        pdf_backend: Backend for PDF conversion ("auto", "inkscape", "cairosvg")
 
     Returns:
         Tuple of (exit_code, message)
@@ -250,6 +631,10 @@ def export_to_pdf(
 
     if presentation.total_slides == 0:
         return EXPORT_FAILED, "Presentation has no slides"
+
+    # Check font availability and warn if needed
+    font_warnings = check_font_availability()
+    print_font_warnings(font_warnings)
 
     # Create temporary directory for SVG files
     with tempfile.TemporaryDirectory() as tmpdir_str:
@@ -273,7 +658,7 @@ def export_to_pdf(
             svg_files.append(svg_file)
 
         # Combine into PDF
-        return combine_svgs_to_pdf(svg_files, output)
+        return combine_svgs_to_pdf(svg_files, output, backend=pdf_backend)
 
 
 # HTML export templates
@@ -573,6 +958,7 @@ def run_export(
     width: int = 80,
     height: int = 24,
     chrome: bool = True,
+    pdf_backend: str = "auto",
 ) -> int:
     """Run PDF export from command line.
 
@@ -583,6 +969,7 @@ def run_export(
         width: Console width in characters
         height: Console height in lines
         chrome: If True, include window decorations; if False, plain output for printing
+        pdf_backend: Backend for PDF conversion ("auto", "inkscape", "cairosvg")
 
     Returns:
         Exit code (0 for success)
@@ -598,11 +985,8 @@ def run_export(
         width=width,
         height=height,
         chrome=chrome,
+        pdf_backend=pdf_backend,
     )
-    if code == EXPORT_SUCCESS:
-        pass
-    else:
-        pass
     return code
 
 
@@ -744,6 +1128,11 @@ def export_to_images(
 
     if presentation.total_slides == 0:
         return EXPORT_FAILED, "No slides found in presentation"
+
+    # Check font availability and warn if needed (for PNG export)
+    if output_format == "png":
+        font_warnings = check_font_availability()
+        print_font_warnings(font_warnings)
 
     # Single slide export
     if slide_num is not None:

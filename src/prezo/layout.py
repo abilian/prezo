@@ -11,6 +11,13 @@ Supports Pandoc-style fenced div syntax:
     :::
     :::
 
+Additional layout blocks:
+    ::: center          - Horizontally centered content
+    ::: right           - Right-aligned content
+    ::: spacer [n]      - Vertical space (default 1 line)
+    ::: box [title]     - Bordered panel with optional title
+    ::: divider [style] - Horizontal rule (single/double/thick/dashed)
+
 """
 
 from __future__ import annotations
@@ -20,9 +27,12 @@ from dataclasses import dataclass, field
 from io import StringIO
 from typing import TYPE_CHECKING, Literal
 
+from rich.cells import cell_len
 from rich.console import Console, ConsoleOptions, Group, RenderResult
 from rich.markdown import Markdown
 from rich.measure import Measurement
+from rich.panel import Panel
+from rich.rule import Rule
 from rich.text import Text
 
 if TYPE_CHECKING:
@@ -33,22 +43,30 @@ if TYPE_CHECKING:
 # -----------------------------------------------------------------------------
 
 
+BlockType = Literal[
+    "plain", "columns", "column", "center", "right", "spacer", "box", "divider"
+]
+
+
 @dataclass
 class LayoutBlock:
     """A block of content with layout information."""
 
-    type: Literal["plain", "columns", "column", "center"]
+    type: BlockType
     content: str = ""  # Raw markdown content (for leaf blocks)
     children: list[LayoutBlock] = field(default_factory=list)
     width_percent: int = 0  # For column blocks (0 = auto/equal)
+    title: str = ""  # For box blocks
+    style: str = ""  # For divider blocks (single/double/thick/dashed)
 
 
 # -----------------------------------------------------------------------------
 # Parser
 # -----------------------------------------------------------------------------
 
-# Pattern for opening fenced div: ::: type [width]
-OPEN_PATTERN = re.compile(r"^:::\s*(\w+)(?:\s+(\d+))?\s*$")
+# Pattern for opening fenced div: ::: type [arg]
+# arg can be: a number (width %), a quoted string (title), or a word (style)
+OPEN_PATTERN = re.compile(r'^:::\s*(\w+)(?:\s+"([^"]+)"|\s+(\S+))?\s*$')
 # Pattern for closing fenced div: :::
 CLOSE_PATTERN = re.compile(r"^:::\s*$")
 
@@ -76,10 +94,14 @@ def parse_layout(content: str) -> list[LayoutBlock]:
 
         if match:
             block_type = match.group(1).lower()
-            width = int(match.group(2)) if match.group(2) else 0
+            # Group 2 is quoted string, Group 3 is unquoted arg
+            quoted_arg = match.group(2)  # For "title"
+            unquoted_arg = match.group(3)  # For width or style
 
             # Find matching close and nested content
-            block, end_idx = _parse_fenced_block(lines, i, block_type, width)
+            block, end_idx = _parse_fenced_block(
+                lines, i, block_type, quoted_arg, unquoted_arg
+            )
             if block:
                 blocks.append(block)
                 i = end_idx + 1
@@ -104,8 +126,59 @@ def parse_layout(content: str) -> list[LayoutBlock]:
     return blocks
 
 
+def _create_block(
+    block_type: str,
+    inner_content: str,
+    quoted_arg: str | None,
+    unquoted_arg: str | None,
+) -> LayoutBlock:
+    """Create a LayoutBlock from parsed fenced div content.
+
+    Args:
+        block_type: The type from ::: type.
+        inner_content: Content inside the fenced div.
+        quoted_arg: Quoted argument (e.g., title for box).
+        unquoted_arg: Unquoted argument (e.g., width or style).
+
+    Returns:
+        A LayoutBlock of the appropriate type.
+
+    """
+    content = inner_content.strip()
+    width = int(unquoted_arg) if unquoted_arg and unquoted_arg.isdigit() else 0
+
+    # Use a dispatch table for simple content blocks
+    simple_types = {"center", "right", "plain"}
+
+    if block_type == "columns":
+        block = LayoutBlock(type="columns")
+        block.children = parse_layout(inner_content)
+    elif block_type == "column":
+        block = LayoutBlock(type="column", content=content, width_percent=width)
+    elif block_type == "spacer":
+        lines_count = width if width > 0 else 1
+        block = LayoutBlock(type="spacer", width_percent=lines_count)
+    elif block_type == "box":
+        title = quoted_arg or unquoted_arg or ""
+        block = LayoutBlock(type="box", content=content, title=title)
+    elif block_type == "divider":
+        style = unquoted_arg if unquoted_arg else "single"
+        block = LayoutBlock(type="divider", style=style)
+    elif block_type in simple_types:
+        block = LayoutBlock(type=block_type, content=content)  # type: ignore[arg-type]
+    else:
+        # Unknown block type - treat as plain
+        block = LayoutBlock(type="plain", content=content)
+
+    return block
+
+
 def _parse_fenced_block(
-    lines: list[str], start: int, block_type: str, width: int
+    lines: list[str],
+    start: int,
+    block_type: str,
+    quoted_arg: str | None,
+    unquoted_arg: str | None,
 ) -> tuple[LayoutBlock | None, int]:
     """Parse a fenced div block starting at the given line.
 
@@ -113,7 +186,8 @@ def _parse_fenced_block(
         lines: All lines of content.
         start: Starting line index (the opening :::).
         block_type: The type from ::: type.
-        width: Width percentage if specified.
+        quoted_arg: Quoted argument (e.g., title for box).
+        unquoted_arg: Unquoted argument (e.g., width or style).
 
     Returns:
         Tuple of (LayoutBlock or None, end line index).
@@ -143,28 +217,8 @@ def _parse_fenced_block(
         return None, start
 
     inner_content = "\n".join(content_lines)
-
-    # For columns/column types, parse children
-    if block_type in ("columns", "column", "center"):
-        block = LayoutBlock(
-            type=block_type,  # type: ignore[arg-type]
-            width_percent=width,
-        )
-
-        if block_type == "columns":
-            # Parse children (should be column blocks)
-            block.children = parse_layout(inner_content)
-        elif block_type == "column":
-            # Column contains markdown content, but might have nested structure
-            # For now, treat as plain content
-            block.content = inner_content.strip()
-        elif block_type == "center":
-            block.content = inner_content.strip()
-
-        return block, i
-
-    # Unknown block type - treat content as plain
-    return LayoutBlock(type="plain", content=inner_content.strip()), i
+    block = _create_block(block_type, inner_content, quoted_arg, unquoted_arg)
+    return block, i
 
 
 def has_layout_blocks(content: str) -> bool:
@@ -303,10 +357,17 @@ class ColumnsRenderable:
             file=StringIO(),
         )
 
-        # Render markdown content
+        # Render content - check for nested layout blocks
         if column.content:
-            md = Markdown(column.content)
-            col_console.print(md)
+            if has_layout_blocks(column.content):
+                # Parse and render nested layout blocks
+                blocks = parse_layout(column.content)
+                renderable = render_layout(blocks)
+                col_console.print(renderable)
+            else:
+                # Plain markdown
+                md = Markdown(column.content)
+                col_console.print(md)
 
         # Get rendered lines
         output = col_console.export_text(styles=True)
@@ -405,6 +466,170 @@ class CenterRenderable:
         return Measurement(1, options.max_width)
 
 
+class RightRenderable:
+    """Rich renderable that right-aligns content."""
+
+    def __init__(self, content: str) -> None:
+        """Initialize right-align renderable.
+
+        Args:
+            content: Markdown content to right-align.
+
+        """
+        self.content = content
+
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> RenderResult:
+        """Render right-aligned content."""
+        yield Text("")
+        md = Markdown(self.content, justify="right")
+        yield md
+        yield Text("")
+
+    def __rich_measure__(
+        self, console: Console, options: ConsoleOptions
+    ) -> Measurement:
+        """Return the measurement of this renderable."""
+        return Measurement(1, options.max_width)
+
+
+class SpacerRenderable:
+    """Rich renderable that creates vertical space."""
+
+    def __init__(self, lines: int = 1) -> None:
+        """Initialize spacer renderable.
+
+        Args:
+            lines: Number of blank lines to insert.
+
+        """
+        self.lines = max(1, lines)
+
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> RenderResult:
+        """Render vertical space."""
+        for _ in range(self.lines):
+            yield Text("")
+
+    def __rich_measure__(
+        self, console: Console, options: ConsoleOptions
+    ) -> Measurement:
+        """Return the measurement of this renderable."""
+        return Measurement(0, 0)
+
+
+class BoxRenderable:
+    """Rich renderable that displays content in a bordered panel."""
+
+    def __init__(self, content: str, title: str = "") -> None:
+        """Initialize box renderable.
+
+        Args:
+            content: Markdown content to display in the box.
+            title: Optional title for the box.
+
+        """
+        self.content = content
+        self.title = title
+
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> RenderResult:
+        """Render content in a bordered panel."""
+        yield Text("")
+        md = Markdown(self.content)
+        panel = Panel(md, title=self.title if self.title else None)
+        yield panel
+        yield Text("")
+
+    def __rich_measure__(
+        self, console: Console, options: ConsoleOptions
+    ) -> Measurement:
+        """Return the measurement of this renderable."""
+        return Measurement(1, options.max_width)
+
+
+# Divider style characters
+DIVIDER_STYLES = {
+    "single": "─",
+    "double": "═",
+    "thick": "━",
+    "dashed": "╌",
+}
+
+
+class DividerRenderable:
+    """Rich renderable that displays a horizontal rule."""
+
+    def __init__(self, style: str = "single") -> None:
+        """Initialize divider renderable.
+
+        Args:
+            style: Style of the divider (single, double, thick, dashed).
+
+        """
+        self.style = style if style in DIVIDER_STYLES else "single"
+
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> RenderResult:
+        """Render horizontal rule."""
+        yield Text("")
+        char = DIVIDER_STYLES[self.style]
+        yield Rule(characters=char)
+        yield Text("")
+
+    def __rich_measure__(
+        self, console: Console, options: ConsoleOptions
+    ) -> Measurement:
+        """Return the measurement of this renderable."""
+        return Measurement(1, options.max_width)
+
+
+def _render_block(block: LayoutBlock) -> list[RenderableType]:
+    """Render a single block to Rich renderables.
+
+    Args:
+        block: A LayoutBlock to render.
+
+    Returns:
+        List of Rich renderables for this block.
+
+    """
+    if block.type == "columns":
+        result: list[RenderableType] = []
+        columns = [c for c in block.children if c.type == "column"]
+        if columns:
+            result.append(ColumnsRenderable(columns))
+        # Also render any non-column children (plain text between columns)
+        for child in block.children:
+            if child.type == "plain":
+                result.append(Markdown(child.content))
+        return result
+
+    if block.type == "spacer":
+        return [SpacerRenderable(block.width_percent)]
+
+    if block.type == "box":
+        return [BoxRenderable(block.content, block.title)]
+
+    if block.type == "divider":
+        return [DividerRenderable(block.style)]
+
+    # Simple content blocks: plain, center, right, column
+    renderable_map: dict[str, type] = {
+        "center": CenterRenderable,
+        "right": RightRenderable,
+    }
+    if block.type in renderable_map:
+        return [renderable_map[block.type](block.content)]
+
+    # Default: plain markdown (for "plain" and standalone "column")
+    return [Markdown(block.content)]
+
+
 def render_layout(
     blocks: list[LayoutBlock],
 ) -> RenderableType:
@@ -420,23 +645,7 @@ def render_layout(
     renderables: list[RenderableType] = []
 
     for block in blocks:
-        match block.type:
-            case "plain":
-                renderables.append(Markdown(block.content))
-            case "columns":
-                # Filter to only column children
-                columns = [c for c in block.children if c.type == "column"]
-                if columns:
-                    renderables.append(ColumnsRenderable(columns))
-                # Also render any non-column children (plain text between columns)
-                for child in block.children:
-                    if child.type == "plain":
-                        renderables.append(Markdown(child.content))
-            case "center":
-                renderables.append(CenterRenderable(block.content))
-            case "column":
-                # Standalone column (shouldn't happen normally)
-                renderables.append(Markdown(block.content))
+        renderables.extend(_render_block(block))
 
     if len(renderables) == 1:
         return renderables[0]
@@ -452,13 +661,20 @@ _ANSI_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
 
 
 def _visible_length(text: str) -> int:
-    """Calculate visible length of text, excluding ANSI codes.
+    """Calculate visible cell width of text, excluding ANSI codes.
+
+    Uses Rich's cell_len for proper Unicode width handling:
+    - Regular ASCII characters = 1 cell
+    - Wide characters (CJK, emoji) = 2 cells
+    - Zero-width characters = 0 cells
 
     Args:
         text: Text possibly containing ANSI escape codes.
 
     Returns:
-        Visible character count.
+        Visible cell width (terminal columns).
 
     """
-    return len(_ANSI_PATTERN.sub("", text))
+    # Strip ANSI codes first, then calculate cell width
+    clean_text = _ANSI_PATTERN.sub("", text)
+    return cell_len(clean_text)
