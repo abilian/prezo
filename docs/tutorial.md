@@ -1,8 +1,23 @@
-# Writing Presentations in Markdown
+# Prezo User Guide
 
-This tutorial explains how to create presentations using the Markdown format supported by Prezo. It covers the slide syntax, formatting options, presenter notes, images, and configuration directives.
+This guide explains how to use Prezo, a terminal-based presentation tool for Markdown slides. It covers installation, creating presentations, keyboard navigation, export options, and configuration.
 
-## Basic Structure
+## Quick Start
+
+```bash
+# Install prezo
+pip install prezo
+
+# Run a presentation
+prezo presentation.md
+
+# Export to PDF
+prezo presentation.md --export pdf
+```
+
+## Writing Presentations
+
+### Basic Structure
 
 A Prezo presentation is a standard Markdown file with slides separated by `---` (three dashes on a line by itself).
 
@@ -26,15 +41,15 @@ Welcome to my presentation!
 More content here...
 ```
 
-## Frontmatter
+### Frontmatter
 
-You can add YAML frontmatter at the beginning of your presentation to set metadata:
+Add YAML frontmatter at the beginning of your presentation to set metadata:
 
 ```markdown
 ---
 title: My Presentation
 author: Your Name
-date: 2025-01-15
+date: 2026-01-15
 theme: dark
 ---
 
@@ -49,11 +64,11 @@ Supported frontmatter fields:
 - `date` - Presentation date
 - `theme` - Default theme (dark, light, dracula, solarized-dark, nord, gruvbox)
 
-## Markdown Formatting
+### Markdown Formatting
 
 All standard Markdown formatting works within slides:
 
-### Headings
+#### Headings
 
 ```markdown
 # Heading 1
@@ -61,7 +76,7 @@ All standard Markdown formatting works within slides:
 ### Heading 3
 ```
 
-### Text Styling
+#### Text Styling
 
 ```markdown
 **Bold text**
@@ -70,7 +85,7 @@ All standard Markdown formatting works within slides:
 `inline code`
 ```
 
-### Lists
+#### Lists
 
 ```markdown
 - Unordered item
@@ -82,7 +97,7 @@ All standard Markdown formatting works within slides:
 3. Third item
 ```
 
-### Code Blocks
+#### Code Blocks
 
 ````markdown
 ```python
@@ -93,7 +108,7 @@ def hello():
 
 Code blocks support syntax highlighting for most languages.
 
-### Tables
+#### Tables
 
 ```markdown
 | Column 1 | Column 2 | Column 3 |
@@ -102,22 +117,22 @@ Code blocks support syntax highlighting for most languages.
 | Cell 4   | Cell 5   | Cell 6   |
 ```
 
-### Blockquotes
+#### Blockquotes
 
 ```markdown
 > This is a quote
 > spanning multiple lines
 ```
 
-### Links
+#### Links
 
 ```markdown
 [Link text](https://example.com)
 ```
 
-## Column Layouts
+## Layout Blocks
 
-Prezo supports Pandoc-style fenced divs for creating multi-column layouts.
+Prezo supports Pandoc-style fenced divs for creating layouts.
 
 ### Two Columns
 
@@ -256,13 +271,6 @@ Layout blocks can be nested inside columns:
 :::
 ```
 
-### Layout Tips
-
-1. **Add blank lines** inside columns for proper paragraph spacing
-2. **Columns work with all Markdown** - lists, code blocks, tables, etc.
-3. **Layouts work in exports** - PDF, HTML, and PNG exports render columns correctly
-4. **Keep columns balanced** - Similar content length looks better
-
 ## Presenter Notes
 
 Add presenter notes that are only visible in the notes panel (press `p` to toggle). There are two syntax options:
@@ -371,6 +379,140 @@ countdown_minutes: 45
 | `countdown_minutes` | number | Countdown timer (0 = disabled) |
 | `image_mode` | auto, kitty, sixel, iterm, ascii, none | Image rendering mode |
 
+## Keyboard Shortcuts
+
+### Navigation
+
+| Key | Action |
+|-----|--------|
+| `Right`, `Space`, `j` | Next slide |
+| `Left`, `k` | Previous slide |
+| `Home`, `g` | First slide |
+| `End`, `G` | Last slide |
+| `:` | Go to slide number |
+| `/` | Search slides |
+
+### Display
+
+| Key | Action |
+|-----|--------|
+| `o` | Open slide overview grid |
+| `t` | Show table of contents |
+| `p` | Toggle presenter notes |
+| `c` | Toggle clock display |
+| `T` | Cycle through themes |
+| `b` | Blackout screen |
+| `w` | Whiteout screen |
+| `i` | View current image |
+
+### Other
+
+| Key | Action |
+|-----|--------|
+| `e` | Edit current slide in $EDITOR |
+| `r` | Reload presentation |
+| `Ctrl+P` | Open command palette |
+| `?` | Show help |
+| `q` | Quit |
+
+## Command Line Usage
+
+### Basic Usage
+
+```bash
+# Run a presentation
+prezo presentation.md
+
+# Start with a specific theme
+prezo presentation.md --theme dracula
+
+# Disable auto-reload on file changes
+prezo presentation.md --no-watch
+
+# Use a specific image rendering mode
+prezo presentation.md --image-mode kitty
+```
+
+### Exporting Presentations
+
+Export to various formats for sharing or printing:
+
+```bash
+# Export to PDF
+prezo presentation.md --export pdf
+
+# Export to HTML
+prezo presentation.md --export html
+
+# Export all slides to PNG images
+prezo presentation.md --export png
+
+# Export all slides to SVG
+prezo presentation.md --export svg
+
+# Export a specific slide
+prezo presentation.md --export png --slide 3
+
+# Specify output path
+prezo presentation.md --export pdf --output slides.pdf
+```
+
+### PDF Export Options
+
+```bash
+# Use Chrome for best quality (default if available)
+prezo presentation.md --export pdf --pdf-backend chrome
+
+# Use Inkscape
+prezo presentation.md --export pdf --pdf-backend inkscape
+
+# Use CairoSVG (fallback, may have alignment issues)
+prezo presentation.md --export pdf --pdf-backend cairosvg
+
+# Export without window decorations (for printing)
+prezo presentation.md --export pdf --no-chrome
+```
+
+### Image Export Options
+
+```bash
+# Higher resolution PNG (scale factor)
+prezo presentation.md --export png --scale 3.0
+
+# Custom size
+prezo presentation.md --export png --size 120x40
+
+# Export with light theme
+prezo presentation.md --export png --theme light
+```
+
+## Configuration
+
+### Configuration File
+
+Prezo reads configuration from `~/.config/prezo/config.toml`:
+
+```toml
+[display]
+theme = "dark"
+show_clock = false
+show_elapsed = true
+
+[presentation]
+countdown_minutes = 0
+
+[images]
+mode = "auto"  # auto, kitty, sixel, iterm, ascii, none
+
+[export]
+default_theme = "dark"
+default_size = "80x24"
+```
+
+### Per-Presentation Configuration
+
+Use frontmatter or `<!-- prezo -->` directives to override global settings for specific presentations.
+
 ## Complete Example
 
 Here's a complete presentation example:
@@ -449,6 +591,7 @@ Thank you for attending!
 4. **Use code sparingly** - Show only relevant snippets
 5. **Add presenter notes** - Include talking points you might forget
 6. **Test your images** - Verify paths and positioning before presenting
+7. **Practice navigation** - Learn the keyboard shortcuts
 
 ## File Organization
 
@@ -471,3 +614,22 @@ Prezo's format is compatible with:
 - **Standard Markdown** - Files render correctly in any Markdown viewer
 
 This means you can view your presentations in other tools or convert them to different formats while still benefiting from Prezo's terminal-based presentation mode.
+
+## Troubleshooting
+
+### Images not displaying
+
+- Verify image paths are relative to the presentation file
+- Check that your terminal supports the image protocol (Kitty, iTerm2, or Sixel)
+- Try `--image-mode ascii` for basic terminals
+
+### PDF export issues
+
+- Install Chrome or Chromium for best results: `brew install --cask google-chrome`
+- Alternatively, install Inkscape: `brew install inkscape`
+- Ensure fonts are installed (Fira Code recommended)
+
+### Alignment problems in exports
+
+- Use `--pdf-backend chrome` for best text alignment
+- CairoSVG has known issues with text positioning
