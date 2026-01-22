@@ -4,6 +4,19 @@ All notable changes to Prezo are documented in this file.
 
 Starting with version 2026.1.1, Prezo uses [CalVer](https://calver.org/) versioning (YYYY.M.patch).
 
+## [2026.1.3] - 2026-01-22
+
+### Added
+- **Chrome PDF backend** - Best quality PDF export using Chrome/Chromium headless
+- **PDF backend selection** - New `--pdf-backend` CLI option (auto, chrome, inkscape, cairosvg)
+- Demo presentation showcasing Prezo features (`docs/slides.md`)
+
+### Changed
+- PDF backend auto-detection now prefers Chrome > Inkscape > CairoSVG
+- Export functions now return `Path` and raise `ExportError` instead of returning `(int, str)` tuples
+- Export module refactored into a package (`export/`) with separate modules for PDF, HTML, images, and SVG
+- Tutorial expanded into comprehensive user guide with CLI usage, keyboard shortcuts, configuration, and troubleshooting
+
 ## [2026.1.2] - 2026-01-22
 
 ### Added
