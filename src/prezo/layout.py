@@ -20,7 +20,6 @@ from dataclasses import dataclass, field
 from io import StringIO
 from typing import TYPE_CHECKING, Literal
 
-from rich.align import Align
 from rich.console import Console, ConsoleOptions, Group, RenderResult
 from rich.markdown import Markdown
 from rich.measure import Measurement
@@ -392,8 +391,9 @@ class CenterRenderable:
         # Blank line before centered content
         yield Text("")
 
-        md = Markdown(self.content)
-        yield Align.center(md)
+        # Use Markdown with center justification
+        md = Markdown(self.content, justify="center")
+        yield md
 
         # Blank line after centered content
         yield Text("")
