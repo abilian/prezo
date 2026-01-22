@@ -7,7 +7,7 @@ from pathlib import Path
 from prezo.parser import clean_marp_directives, extract_notes, parse_presentation
 from prezo.themes import get_theme
 
-from .common import EXPORT_FAILED, EXPORT_SUCCESS
+from .common import EXIT_FAILURE, EXIT_SUCCESS, ExportError
 
 # HTML export templates
 HTML_TEMPLATE = """\
@@ -226,7 +226,7 @@ def export_to_html(
     *,
     theme: str = "dark",
     include_notes: bool = False,
-) -> tuple[int, str]:
+) -> Path:
     """Export presentation to HTML.
 
     Args:
@@ -236,19 +236,25 @@ def export_to_html(
         include_notes: Whether to include presenter notes.
 
     Returns:
-        Tuple of (exit_code, message).
+        Path to the created HTML file.
+
+    Raises:
+        ExportError: If export fails.
 
     """
     if not source.exists():
-        return EXPORT_FAILED, f"Source file not found: {source}"
+        msg = f"Source file not found: {source}"
+        raise ExportError(msg)
 
     try:
         presentation = parse_presentation(source)
     except Exception as e:
-        return EXPORT_FAILED, f"Failed to parse presentation: {e}"
+        msg = f"Failed to parse presentation: {e}"
+        raise ExportError(msg) from e
 
     if presentation.total_slides == 0:
-        return EXPORT_FAILED, "Presentation has no slides"
+        msg = "Presentation has no slides"
+        raise ExportError(msg)
 
     theme_obj = get_theme(theme)
 
@@ -290,12 +296,10 @@ def export_to_html(
 
     try:
         output.write_text(html)
-        return (
-            EXPORT_SUCCESS,
-            f"Exported {presentation.total_slides} slides to {output}",
-        )
+        return output
     except Exception as e:
-        return EXPORT_FAILED, f"Failed to write HTML: {e}"
+        msg = f"Failed to write HTML: {e}"
+        raise ExportError(msg) from e
 
 
 def run_html_export(
@@ -317,13 +321,20 @@ def run_html_export(
         Exit code (0 for success).
 
     """
+    import sys  # noqa: PLC0415
+
     source_path = Path(source)
     output_path = Path(output) if output else source_path.with_suffix(".html")
 
-    code, _message = export_to_html(
-        source_path,
-        output_path,
-        theme=theme,
-        include_notes=include_notes,
-    )
-    return code
+    try:
+        result_path = export_to_html(
+            source_path,
+            output_path,
+            theme=theme,
+            include_notes=include_notes,
+        )
+        print(f"Exported to {result_path}")
+        return EXIT_SUCCESS
+    except ExportError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return EXIT_FAILURE

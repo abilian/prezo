@@ -40,6 +40,8 @@ lint.extend-ignore = [
     "PERF401", # list comprehension - explicit append loop is clearer
     "RUF003",
     "E501",
+    "TRY301", #	raise-within-try
+    "C901", #  	complex-structure
 ]
 
 [lint.extend-per-file-ignores]

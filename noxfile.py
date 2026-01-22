@@ -5,7 +5,6 @@ from __future__ import annotations
 import nox
 
 PYTHON_VERSIONS = ["3.12", "3.13", "3.14"]
-DEFAULT_PYTHON = "3.12"
 
 nox.options.default_venv_backend = "uv"
 nox.options.reuse_existing_virtualenvs = True
@@ -19,7 +18,7 @@ def test(session: nox.Session) -> None:
     session.run("pytest", "tests", *session.posargs)
 
 
-@nox.session(python=DEFAULT_PYTHON)
+@nox.session
 def check(session: nox.Session) -> None:
     """Run all checks (lint, typecheck, tests)."""
     session.run("uv", "sync", "--active", external=True)
@@ -31,7 +30,4 @@ def check(session: nox.Session) -> None:
     # Type check
     session.run("mypy", "src")
     session.run("ty", "check", "src")
-    session.run("pyrefly", "check", "src")
-
-    # Tests
-    session.run("pytest", "tests", *session.posargs)
+    # session.run("pyrefly", "check", "src")

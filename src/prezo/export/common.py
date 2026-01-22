@@ -6,9 +6,18 @@ import shutil
 import subprocess
 import sys
 
-# Export result types
-EXPORT_SUCCESS = 0
-EXPORT_FAILED = 2
+
+class ExportError(Exception):
+    """Raised when an export operation fails."""
+
+
+# Exit codes for CLI (only used in run_* wrapper functions)
+EXIT_SUCCESS = 0
+EXIT_FAILURE = 2
+
+# Backwards compatibility aliases (deprecated, use exceptions instead)
+EXPORT_SUCCESS = EXIT_SUCCESS
+EXPORT_FAILED = EXIT_FAILURE
 
 
 def check_font_availability() -> list[str]:

@@ -10,8 +10,7 @@ alignment may be incorrect.
 from __future__ import annotations
 
 from .common import (
-    EXPORT_FAILED,
-    EXPORT_SUCCESS,
+    ExportError,
     check_font_availability,
     print_font_warnings,
 )
@@ -21,8 +20,7 @@ from .pdf import combine_svgs_to_pdf, export_to_pdf, run_export
 from .svg import render_slide_to_svg
 
 __all__ = [
-    "EXPORT_FAILED",
-    "EXPORT_SUCCESS",
+    "ExportError",
     "check_font_availability",
     "combine_svgs_to_pdf",
     "export_slide_to_image",

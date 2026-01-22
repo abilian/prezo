@@ -13,8 +13,9 @@ from pathlib import Path
 from prezo.parser import parse_presentation
 
 from .common import (
-    EXPORT_FAILED,
-    EXPORT_SUCCESS,
+    EXIT_FAILURE,
+    EXIT_SUCCESS,
+    ExportError,
     check_font_availability,
     print_font_warnings,
 )
@@ -208,7 +209,7 @@ def _select_pdf_backend(backend: str) -> tuple[str, str | None]:
 
 def combine_svgs_to_pdf(
     svg_files: list[Path], output: Path, *, backend: str = "auto"
-) -> tuple[int, str]:
+) -> Path:
     """Combine multiple SVG files into a single PDF.
 
     Args:
@@ -217,28 +218,34 @@ def combine_svgs_to_pdf(
         backend: PDF conversion backend ("auto", "chrome", "inkscape", "cairosvg")
 
     Returns:
-        Tuple of (exit_code, message)
+        Path to the created PDF file.
+
+    Raises:
+        ExportError: If PDF generation fails.
 
     """
     selected, error = _select_pdf_backend(backend)
     if error:
-        return EXPORT_FAILED, error
+        raise ExportError(error)
 
-    if selected == "chrome":
-        return _combine_svgs_to_pdf_chrome(svg_files, output)
-    if selected == "inkscape":
-        return _combine_svgs_to_pdf_inkscape(svg_files, output)
-    return _combine_svgs_to_pdf_cairosvg(svg_files, output)
+    match selected:
+        case "chrome":
+            return _combine_svgs_to_pdf_chrome(svg_files, output)
+        case "inkscape":
+            return _combine_svgs_to_pdf_inkscape(svg_files, output)
+        case _:
+            return _combine_svgs_to_pdf_cairosvg(svg_files, output)
 
 
-def _combine_svgs_to_pdf_chrome(svg_files: list[Path], output: Path) -> tuple[int, str]:
+def _combine_svgs_to_pdf_chrome(svg_files: list[Path], output: Path) -> Path:
     """Combine SVGs to PDF using Chrome headless."""
     try:
         from pypdf import PdfReader, PdfWriter  # noqa: PLC0415
-    except ImportError:
-        return EXPORT_FAILED, (
-            "Required package not installed. Install with:\n  pip install pypdf"
-        )
+    except ImportError as e:
+        msg = "Required package not installed. Install with:\n  pip install pypdf"
+        raise ExportError(
+            msg
+        ) from e
 
     pdf_pages: list[Path] = []
 
@@ -250,7 +257,8 @@ def _combine_svgs_to_pdf_chrome(svg_files: list[Path], output: Path) -> tuple[in
             if not _convert_svg_to_pdf_chrome(svg_file, pdf_path):
                 for p in pdf_pages:
                     p.unlink(missing_ok=True)
-                return EXPORT_FAILED, "Chrome PDF conversion failed"
+                msg = "Chrome PDF conversion failed"
+                raise ExportError(msg)
 
             pdf_pages.append(pdf_path)
 
@@ -268,24 +276,26 @@ def _combine_svgs_to_pdf_chrome(svg_files: list[Path], output: Path) -> tuple[in
         for p in pdf_pages:
             p.unlink(missing_ok=True)
 
-        return EXPORT_SUCCESS, f"Exported {len(svg_files)} slides to {output}"
+        return output
 
+    except ExportError:
+        raise
     except Exception as e:
         for p in pdf_pages:
             p.unlink(missing_ok=True)
-        return EXPORT_FAILED, f"PDF generation failed: {e}"
+        msg = f"PDF generation failed: {e}"
+        raise ExportError(msg) from e
 
 
-def _combine_svgs_to_pdf_inkscape(
-    svg_files: list[Path], output: Path
-) -> tuple[int, str]:
+def _combine_svgs_to_pdf_inkscape(svg_files: list[Path], output: Path) -> Path:
     """Combine SVGs to PDF using Inkscape."""
     try:
         from pypdf import PdfReader, PdfWriter  # noqa: PLC0415
-    except ImportError:
-        return EXPORT_FAILED, (
-            "Required package not installed. Install with:\n  pip install pypdf"
-        )
+    except ImportError as e:
+        msg = "Required package not installed. Install with:\n  pip install pypdf"
+        raise ExportError(
+            msg
+        ) from e
 
     pdf_pages: list[Path] = []
 
@@ -298,7 +308,8 @@ def _combine_svgs_to_pdf_inkscape(
                 # Clean up and fail
                 for p in pdf_pages:
                     p.unlink(missing_ok=True)
-                return EXPORT_FAILED, "Inkscape conversion failed"
+                msg = "Inkscape conversion failed"
+                raise ExportError(msg)
 
             pdf_pages.append(pdf_path)
 
@@ -316,25 +327,29 @@ def _combine_svgs_to_pdf_inkscape(
         for p in pdf_pages:
             p.unlink(missing_ok=True)
 
-        return EXPORT_SUCCESS, f"Exported {len(svg_files)} slides to {output}"
+        return output
 
+    except ExportError:
+        raise
     except Exception as e:
         for p in pdf_pages:
             p.unlink(missing_ok=True)
-        return EXPORT_FAILED, f"PDF generation failed: {e}"
+        msg = f"PDF generation failed: {e}"
+        raise ExportError(msg) from e
 
 
-def _combine_svgs_to_pdf_cairosvg(
-    svg_files: list[Path], output: Path
-) -> tuple[int, str]:
+def _combine_svgs_to_pdf_cairosvg(svg_files: list[Path], output: Path) -> Path:
     """Combine SVGs to PDF using CairoSVG."""
     try:
         from pypdf import PdfReader, PdfWriter  # noqa: PLC0415
-    except ImportError:
-        return EXPORT_FAILED, (
+    except ImportError as e:
+        msg = (
             "Required packages not installed. Install with:\n"
             "  pip install cairosvg pypdf"
         )
+        raise ExportError(
+            msg
+        ) from e
 
     # Warn about CairoSVG limitations
     print(
@@ -349,8 +364,9 @@ def _combine_svgs_to_pdf_cairosvg(
         for svg_file in svg_files:
             pdf_bytes = _convert_svg_to_pdf_cairosvg(svg_file)
             if pdf_bytes is None:
-                return EXPORT_FAILED, (
-                    "CairoSVG not installed. Install with:\n  pip install cairosvg"
+                msg = "CairoSVG not installed. Install with:\n  pip install cairosvg"
+                raise ExportError(
+                    msg
                 )
             pdf_pages.append(io.BytesIO(pdf_bytes))
 
@@ -363,10 +379,13 @@ def _combine_svgs_to_pdf_cairosvg(
         with open(output, "wb") as f:
             writer.write(f)
 
-        return EXPORT_SUCCESS, f"Exported {len(svg_files)} slides to {output}"
+        return output
 
+    except ExportError:
+        raise
     except Exception as e:
-        return EXPORT_FAILED, f"PDF generation failed: {e}"
+        msg = f"PDF generation failed: {e}"
+        raise ExportError(msg) from e
 
 
 def export_to_pdf(
@@ -378,7 +397,7 @@ def export_to_pdf(
     height: int = 24,
     chrome: bool = True,
     pdf_backend: str = "auto",
-) -> tuple[int, str]:
+) -> Path:
     """Export presentation to PDF matching TUI appearance.
 
     Args:
@@ -391,20 +410,26 @@ def export_to_pdf(
         pdf_backend: Backend for PDF conversion ("auto", "inkscape", "cairosvg")
 
     Returns:
-        Tuple of (exit_code, message)
+        Path to the created PDF file.
+
+    Raises:
+        ExportError: If export fails.
 
     """
     if not source.exists():
-        return EXPORT_FAILED, f"Source file not found: {source}"
+        msg = f"Source file not found: {source}"
+        raise ExportError(msg)
 
     # Parse the presentation
     try:
         presentation = parse_presentation(source)
     except Exception as e:
-        return EXPORT_FAILED, f"Failed to parse presentation: {e}"
+        msg = f"Failed to parse presentation: {e}"
+        raise ExportError(msg) from e
 
     if presentation.total_slides == 0:
-        return EXPORT_FAILED, "Presentation has no slides"
+        msg = "Presentation has no slides"
+        raise ExportError(msg)
 
     # Check font availability and warn if needed
     font_warnings = check_font_availability()
@@ -463,13 +488,18 @@ def run_export(
     source_path = Path(source)
     output_path = Path(output) if output else source_path.with_suffix(".pdf")
 
-    code, _message = export_to_pdf(
-        source_path,
-        output_path,
-        theme=theme,
-        width=width,
-        height=height,
-        chrome=chrome,
-        pdf_backend=pdf_backend,
-    )
-    return code
+    try:
+        result_path = export_to_pdf(
+            source_path,
+            output_path,
+            theme=theme,
+            width=width,
+            height=height,
+            chrome=chrome,
+            pdf_backend=pdf_backend,
+        )
+        print(f"Exported to {result_path}")
+        return EXIT_SUCCESS
+    except ExportError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return EXIT_FAILURE

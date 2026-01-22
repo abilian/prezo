@@ -8,8 +8,7 @@ from unittest.mock import patch
 import pytest
 
 from prezo.export import (
-    EXPORT_FAILED,
-    EXPORT_SUCCESS,
+    ExportError,
     export_slide_to_image,
     export_to_html,
     export_to_images,
@@ -64,9 +63,8 @@ class TestExportToPdf:
     def test_source_not_found(self, tmp_path: Path):
         source = tmp_path / "nonexistent.md"
         output = tmp_path / "output.pdf"
-        code, msg = export_to_pdf(source, output)
-        assert code == EXPORT_FAILED
-        assert "not found" in msg
+        with pytest.raises(ExportError, match="not found"):
+            export_to_pdf(source, output)
 
     def test_single_empty_slide_still_exports(self, tmp_path: Path):
         """An empty file produces one empty slide, which is valid."""
@@ -75,11 +73,11 @@ class TestExportToPdf:
         output = tmp_path / "empty.pdf"
 
         with patch("prezo.export.pdf.combine_svgs_to_pdf") as mock_combine:
-            mock_combine.return_value = (EXPORT_SUCCESS, "Exported")
-            code, _msg = export_to_pdf(source, output)
+            mock_combine.return_value = output
+            result = export_to_pdf(source, output)
 
         # Empty content still produces 1 slide
-        assert code == EXPORT_SUCCESS
+        assert result == output
 
     def test_custom_output_path(self, tmp_path: Path):
         source = tmp_path / "presentation.md"
@@ -87,8 +85,8 @@ class TestExportToPdf:
         output = tmp_path / "custom_name.pdf"
 
         with patch("prezo.export.pdf.combine_svgs_to_pdf") as mock_combine:
-            mock_combine.return_value = (EXPORT_SUCCESS, "Exported")
-            _code, _msg = export_to_pdf(source, output)
+            mock_combine.return_value = output
+            export_to_pdf(source, output)
 
         call_args = mock_combine.call_args
         output_path = call_args[0][1]
@@ -100,8 +98,8 @@ class TestExportToPdf:
         output = tmp_path / "multi.pdf"
 
         with patch("prezo.export.pdf.combine_svgs_to_pdf") as mock_combine:
-            mock_combine.return_value = (EXPORT_SUCCESS, "Exported")
-            _code, _msg = export_to_pdf(source, output)
+            mock_combine.return_value = output
+            export_to_pdf(source, output)
 
         # Should have 3 SVG files passed to combine
         call_args = mock_combine.call_args
@@ -142,9 +140,9 @@ class TestCombineSvgsToPdf:
             svg_files.append(svg_file)
 
         output = tmp_path / "output.pdf"
-        code, _msg = combine_svgs_to_pdf(svg_files, output)
+        result = combine_svgs_to_pdf(svg_files, output)
 
-        assert code == EXPORT_SUCCESS
+        assert result == output
         assert output.exists()
         assert output.stat().st_size > 0
 
@@ -176,18 +174,17 @@ class TestExportToHtml:
     def test_source_not_found(self, tmp_path: Path):
         source = tmp_path / "nonexistent.md"
         output = tmp_path / "output.html"
-        code, msg = export_to_html(source, output)
-        assert code == EXPORT_FAILED
-        assert "not found" in msg
+        with pytest.raises(ExportError, match="not found"):
+            export_to_html(source, output)
 
     def test_exports_basic_presentation(self, tmp_path: Path):
         source = tmp_path / "test.md"
         source.write_text("# Slide 1\n\n---\n\n# Slide 2")
         output = tmp_path / "test.html"
 
-        code, _msg = export_to_html(source, output)
+        result = export_to_html(source, output)
 
-        assert code == EXPORT_SUCCESS
+        assert result == output
         assert output.exists()
 
         html = output.read_text()
@@ -215,9 +212,9 @@ class TestExportToHtml:
         source.write_text("# Slide\n\n???\nPresenter notes here")
         output = tmp_path / "test.html"
 
-        code, _ = export_to_html(source, output, include_notes=True)
+        result = export_to_html(source, output, include_notes=True)
 
-        assert code == EXPORT_SUCCESS
+        assert result == output
         html = output.read_text()
         assert "Presenter notes here" in html
 
@@ -257,8 +254,8 @@ class TestExportToHtml:
         output = tmp_path / "empty.html"
 
         # Empty content still produces one slide (empty string)
-        code, _ = export_to_html(source, output)
-        assert code == EXPORT_SUCCESS
+        result = export_to_html(source, output)
+        assert result == output
 
 
 class TestExportSlideToImage:
@@ -271,9 +268,9 @@ class TestExportSlideToImage:
         content = "# Hello World\n\nThis is a test slide."
         output = tmp_path / "slide.png"
 
-        code, _msg = export_slide_to_image(content, 0, 1, output, output_format="png")
+        result = export_slide_to_image(content, 0, 1, output, output_format="png")
 
-        assert code == EXPORT_SUCCESS
+        assert result == output
         assert output.exists()
         assert output.stat().st_size > 0
 
@@ -282,9 +279,9 @@ class TestExportSlideToImage:
         content = "# Hello World\n\nThis is a test slide."
         output = tmp_path / "slide.svg"
 
-        code, _msg = export_slide_to_image(content, 0, 1, output, output_format="svg")
+        result = export_slide_to_image(content, 0, 1, output, output_format="svg")
 
-        assert code == EXPORT_SUCCESS
+        assert result == output
         assert output.exists()
         svg_content = output.read_text()
         assert "<svg" in svg_content
@@ -311,9 +308,9 @@ class TestExportSlideToImage:
         content = "# Test"
         output = tmp_path / "slide.svg"
 
-        code, _ = export_slide_to_image(content, 2, 5, output, output_format="svg")
+        result = export_slide_to_image(content, 2, 5, output, output_format="svg")
 
-        assert code == EXPORT_SUCCESS
+        assert result == output
         svg_content = output.read_text()
         assert "3/5" in svg_content  # 0-indexed -> 1-indexed
 
@@ -344,10 +341,8 @@ class TestExportToImages:
         source = tmp_path / "nonexistent.md"
         output = tmp_path / "output"
 
-        code, msg = export_to_images(source, output, output_format="svg")
-
-        assert code == EXPORT_FAILED
-        assert "Failed to read" in msg
+        with pytest.raises(ExportError, match="Failed to read"):
+            export_to_images(source, output, output_format="svg")
 
     def test_exports_all_slides_as_svg(self, tmp_path: Path):
         """Test exporting all slides to SVG."""
@@ -355,10 +350,9 @@ class TestExportToImages:
         source.write_text("# Slide 1\n\n---\n\n# Slide 2\n\n---\n\n# Slide 3")
         output_dir = tmp_path / "output"
 
-        code, msg = export_to_images(source, output_dir, output_format="svg")
+        result = export_to_images(source, output_dir, output_format="svg")
 
-        assert code == EXPORT_SUCCESS
-        assert "Exported 3 slides" in msg
+        assert len(result) == 3
         assert (output_dir / "presentation_001.svg").exists()
         assert (output_dir / "presentation_002.svg").exists()
         assert (output_dir / "presentation_003.svg").exists()
@@ -371,10 +365,9 @@ class TestExportToImages:
         source.write_text("# Slide 1\n\n---\n\n# Slide 2")
         output_dir = tmp_path / "output"
 
-        code, msg = export_to_images(source, output_dir, output_format="png")
+        result = export_to_images(source, output_dir, output_format="png")
 
-        assert code == EXPORT_SUCCESS
-        assert "Exported 2 slides" in msg
+        assert len(result) == 2
         assert (output_dir / "presentation_001.png").exists()
         assert (output_dir / "presentation_002.png").exists()
 
@@ -384,10 +377,10 @@ class TestExportToImages:
         source.write_text("# Slide 1\n\n---\n\n# Slide 2\n\n---\n\n# Slide 3")
         output = tmp_path / "slide2.svg"
 
-        code, msg = export_to_images(source, output, output_format="svg", slide_num=2)
+        result = export_to_images(source, output, output_format="svg", slide_num=2)
 
-        assert code == EXPORT_SUCCESS
-        assert "slide 2" in msg
+        assert len(result) == 1
+        assert result[0] == output
         assert output.exists()
         svg_content = output.read_text()
         assert "<svg" in svg_content
@@ -397,20 +390,16 @@ class TestExportToImages:
         source = tmp_path / "presentation.md"
         source.write_text("# Slide 1\n\n---\n\n# Slide 2")
 
-        code, msg = export_to_images(source, output_format="svg", slide_num=5)
-
-        assert code == EXPORT_FAILED
-        assert "Invalid slide number" in msg
+        with pytest.raises(ExportError, match="Invalid slide number"):
+            export_to_images(source, output_format="svg", slide_num=5)
 
     def test_invalid_slide_number_zero(self, tmp_path: Path):
         """Test error when slide number is zero."""
         source = tmp_path / "presentation.md"
         source.write_text("# Slide 1")
 
-        code, msg = export_to_images(source, output_format="svg", slide_num=0)
-
-        assert code == EXPORT_FAILED
-        assert "Invalid slide number" in msg
+        with pytest.raises(ExportError, match="Invalid slide number"):
+            export_to_images(source, output_format="svg", slide_num=0)
 
     def test_creates_output_directory(self, tmp_path: Path):
         """Test that output directory is created if it doesn't exist."""
@@ -418,9 +407,9 @@ class TestExportToImages:
         source.write_text("# Slide 1")
         output_dir = tmp_path / "new" / "nested" / "dir"
 
-        code, _ = export_to_images(source, output_dir, output_format="svg")
+        result = export_to_images(source, output_dir, output_format="svg")
 
-        assert code == EXPORT_SUCCESS
+        assert len(result) == 1
         assert output_dir.exists()
 
     def test_naming_convention(self, tmp_path: Path):
@@ -430,9 +419,9 @@ class TestExportToImages:
         source.write_text(slides)
         output_dir = tmp_path / "output"
 
-        code, _ = export_to_images(source, output_dir, output_format="svg")
+        result = export_to_images(source, output_dir, output_format="svg")
 
-        assert code == EXPORT_SUCCESS
+        assert len(result) == 12
         # Check naming with zero-padding
         assert (output_dir / "my_presentation_001.svg").exists()
         assert (output_dir / "my_presentation_010.svg").exists()
@@ -450,9 +439,9 @@ class TestExportToImages:
         # Output path with extension (should use "slides" as prefix, not "output")
         output = nested_dir / "slides.svg"
 
-        code, _ = export_to_images(source, output, output_format="svg")
+        result = export_to_images(source, output, output_format="svg")
 
-        assert code == EXPORT_SUCCESS
+        assert len(result) == 2
         # Should use "slides" prefix, not "output" (parent dir name)
         assert (nested_dir / "slides_001.svg").exists()
         assert (nested_dir / "slides_002.svg").exists()
