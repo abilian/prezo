@@ -56,6 +56,9 @@ class StatusBar(Static):
     show_elapsed: reactive[bool] = reactive(True)
     show_countdown: reactive[bool] = reactive(False)
     countdown_minutes: reactive[int] = reactive(0)
+    # Incremental reveal indicator
+    reveal_current: reactive[int] = reactive(-1)  # -1 = not in reveal mode
+    reveal_total: reactive[int] = reactive(0)
 
     def __init__(self, **kwargs) -> None:
         """Initialize the status bar."""
@@ -77,6 +80,13 @@ class StatusBar(Static):
         # Progress part
         bar = format_progress_bar(self.current, self.total, width=20)
         progress = f"{bar} {self.current + 1}/{self.total}"
+
+        # Reveal indicator (shows remaining list items)
+        reveal = ""
+        if self.reveal_current >= 0 and self.reveal_total > 0:
+            remaining = self.reveal_total - self.reveal_current - 1
+            if remaining > 0:
+                reveal = f" [+{remaining}]"
 
         # Clock part
         clock_parts = []
@@ -100,8 +110,8 @@ class StatusBar(Static):
 
         # Combine with spacing
         if clock:
-            return f" {progress}    {clock} "
-        return f" {progress} "
+            return f" {progress}{reveal}    {clock} "
+        return f" {progress}{reveal} "
 
     def reset_timer(self) -> None:
         """Reset the elapsed timer."""
@@ -140,6 +150,14 @@ class StatusBar(Static):
 
     def watch_show_elapsed(self, value: bool) -> None:
         """React to elapsed time visibility changes."""
+        self.refresh()
+
+    def watch_reveal_current(self, value: int) -> None:
+        """React to reveal indicator changes."""
+        self.refresh()
+
+    def watch_reveal_total(self, value: int) -> None:
+        """React to reveal total changes."""
         self.refresh()
 
 

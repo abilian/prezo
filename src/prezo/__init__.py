@@ -159,6 +159,12 @@ def main() -> None:
         choices=["auto", "kitty", "sixel", "iterm", "ascii", "none"],
         help="Image rendering mode (auto, kitty, sixel, iterm, ascii, none)",
     )
+    parser.add_argument(
+        "-I",
+        "--incremental",
+        action="store_true",
+        help="Display lists incrementally, one item at a time (like Pandoc)",
+    )
 
     args = parser.parse_args()
 
@@ -236,4 +242,9 @@ def main() -> None:
         if args.file:
             file_path = _validate_file(Path(args.file))
 
-        run_app(file_path, watch=not args.no_watch, config=config)
+        run_app(
+            file_path,
+            watch=not args.no_watch,
+            config=config,
+            incremental=args.incremental,
+        )

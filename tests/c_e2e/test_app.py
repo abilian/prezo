@@ -522,3 +522,211 @@ class TestPrezoCommandsProvider:
 
             # Should have advanced to next slide
             assert app.current_slide == 1
+
+
+class TestIncrementalLists:
+    """Tests for incremental lists feature."""
+
+    @pytest.fixture
+    def presentation_with_lists(self, tmp_path):
+        """Create a test presentation with lists."""
+        pres = tmp_path / "list_pres.md"
+        pres.write_text("""---
+title: List Test
+---
+
+# First Slide
+
+- Item 1
+- Item 2
+- Item 3
+
+---
+
+# Second Slide
+
+No list here, just text.
+
+---
+
+# Third Slide
+
+1. First
+2. Second
+3. Third
+""")
+        return pres
+
+    async def test_incremental_flag_enables_reveal(self, presentation_with_lists):
+        """Test that -I flag enables incremental reveal."""
+        app = PrezoApp(presentation_with_lists, incremental=True)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+
+            # Incremental mode should be enabled
+            assert app.incremental_cli is True
+            assert app._is_incremental_enabled() is True
+
+            # Should start with reveal_index = 0 (first item visible)
+            assert app.reveal_index == 0
+
+    async def test_incremental_reveal_forward(self, presentation_with_lists):
+        """Test revealing items forward."""
+        app = PrezoApp(presentation_with_lists, incremental=True)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+
+            # Start at first item
+            assert app.current_slide == 0
+            assert app.reveal_index == 0
+
+            # Press right to reveal second item
+            await pilot.press("right")
+            assert app.current_slide == 0
+            assert app.reveal_index == 1
+
+            # Press right to reveal third item
+            await pilot.press("right")
+            assert app.current_slide == 0
+            assert app.reveal_index == 2
+
+            # Press right to go to next slide (all items revealed)
+            await pilot.press("right")
+            assert app.current_slide == 1
+
+    async def test_incremental_reveal_backward(self, presentation_with_lists):
+        """Test hiding items backward."""
+        app = PrezoApp(presentation_with_lists, incremental=True)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+
+            # Reveal all items on first slide
+            await pilot.press("right")  # reveal_index = 1
+            await pilot.press("right")  # reveal_index = 2
+
+            assert app.reveal_index == 2
+
+            # Press left to hide last item
+            await pilot.press("left")
+            assert app.current_slide == 0
+            assert app.reveal_index == 1
+
+            # Press left to hide another item
+            await pilot.press("left")
+            assert app.current_slide == 0
+            assert app.reveal_index == 0
+
+    async def test_slide_without_lists_skips_incremental(self, presentation_with_lists):
+        """Test that slides without lists skip incremental mode."""
+        app = PrezoApp(presentation_with_lists, incremental=True)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+
+            # Navigate to second slide (no lists)
+            app.current_slide = 1
+            await pilot.pause()
+
+            # Should have reveal_index = -1 (show all)
+            assert app.reveal_index == -1
+
+            # Next should go to next slide, not try to reveal
+            await pilot.press("right")
+            assert app.current_slide == 2
+
+    async def test_going_back_shows_all_items(self, presentation_with_lists):
+        """Test that going back to a slide shows all items."""
+        app = PrezoApp(presentation_with_lists, incremental=True)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+
+            # Navigate through first slide
+            await pilot.press("right")  # reveal_index = 1
+            await pilot.press("right")  # reveal_index = 2
+            await pilot.press("right")  # go to slide 1
+
+            assert app.current_slide == 1
+
+            # Go back to first slide
+            await pilot.press("left")
+
+            # Should show all items (reveal_index = 2)
+            assert app.current_slide == 0
+            assert app.reveal_index == 2
+
+    async def test_incremental_disabled_by_default(self, presentation_with_lists):
+        """Test that incremental mode is disabled by default."""
+        app = PrezoApp(presentation_with_lists)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+
+            # Incremental mode should be disabled
+            assert app.incremental_cli is False
+            assert app._is_incremental_enabled() is False
+
+            # reveal_index should be -1 (show all)
+            assert app.reveal_index == -1
+
+            # Next should go to next slide immediately
+            await pilot.press("right")
+            assert app.current_slide == 1
+
+    @pytest.fixture
+    def presentation_with_layout(self, tmp_path):
+        """Create a test presentation with layout blocks."""
+        pres = tmp_path / "layout_pres.md"
+        pres.write_text("""---
+title: Layout Test
+---
+
+# Slide with Columns
+
+::: columns
+::: column
+- Left 1
+- Left 2
+:::
+::: column
+- Right 1
+- Right 2
+:::
+:::
+
+---
+
+# Simple List
+
+- Item 1
+- Item 2
+- Item 3
+""")
+        return pres
+
+    async def test_layout_blocks_with_incremental(self, presentation_with_layout):
+        """Test that incremental mode works with layout blocks."""
+        app = PrezoApp(presentation_with_layout, incremental=True)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+
+            # First slide has layout blocks with 4 list items
+            assert app.current_slide == 0
+            assert app._get_list_count(0) == 4  # 4 items across columns
+            assert app.reveal_index == 0  # Start with first item
+
+            # Reveal items one by one
+            await pilot.press("right")
+            assert app.current_slide == 0
+            assert app.reveal_index == 1
+
+            await pilot.press("right")
+            assert app.reveal_index == 2
+
+            await pilot.press("right")
+            assert app.reveal_index == 3
+
+            # Next should go to next slide (all items revealed)
+            await pilot.press("right")
+            assert app.current_slide == 1
+
+            # Second slide has 3 items
+            assert app._get_list_count(1) == 3
+            assert app.reveal_index == 0

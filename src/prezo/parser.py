@@ -40,6 +40,7 @@ class Slide:
     raw_content: str = ""  # Original content for editing
     notes: str = ""
     images: list[ImageRef] = field(default_factory=list)
+    incremental: bool | None = None  # Per-slide override for incremental lists
 
 
 @dataclass
@@ -51,6 +52,7 @@ class PresentationConfig:
     show_elapsed: bool | None = None
     countdown_minutes: int | None = None
     image_mode: str | None = None
+    incremental_lists: bool | None = None
 
     def merge_to_dict(self) -> dict[str, Any]:
         """Convert non-None values to a config dict for merging."""
@@ -65,6 +67,10 @@ class PresentationConfig:
             result.setdefault("timer", {})["countdown_minutes"] = self.countdown_minutes
         if self.image_mode is not None:
             result.setdefault("images", {})["mode"] = self.image_mode
+        if self.incremental_lists is not None:
+            result.setdefault("behavior", {})["incremental_lists"] = (
+                self.incremental_lists
+            )
         return result
 
 
@@ -170,6 +176,24 @@ def extract_notes(content: str) -> tuple[str, str]:
     return content, ""
 
 
+def extract_slide_incremental(content: str) -> bool | None:
+    """Extract per-slide incremental directive from content.
+
+    Looks for:
+    - <!-- incremental --> to enable incremental lists for this slide
+    - <!-- no-incremental --> to disable incremental lists for this slide
+
+    Returns:
+        True if incremental enabled, False if disabled, None if not specified.
+
+    """
+    if re.search(r"<!--\s*incremental\s*-->", content, re.IGNORECASE):
+        return True
+    if re.search(r"<!--\s*no-incremental\s*-->", content, re.IGNORECASE):
+        return False
+    return None
+
+
 def extract_prezo_directives(content: str) -> PresentationConfig:
     """Extract Prezo-specific directives from presentation content.
 
@@ -217,6 +241,8 @@ def extract_prezo_directives(content: str) -> PresentationConfig:
                 config.countdown_minutes = int(value)
         elif key in ("image_mode", "imagemode", "images"):
             config.image_mode = value
+        elif key in ("incremental_lists", "incremental", "incrementallists"):
+            config.incremental_lists = value.lower() in ("true", "1", "yes", "on")
 
     return config
 
@@ -420,6 +446,8 @@ def _parse_content(text: str, source_path: Path | None) -> Presentation:
         slide_content, notes = extract_notes(raw_slide)
         # Extract images BEFORE cleaning (clean_marp_directives removes bg images)
         images = extract_images(slide_content)
+        # Extract per-slide incremental setting
+        incremental = extract_slide_incremental(slide_content)
         cleaned_content = clean_marp_directives(slide_content).strip()
         slide = Slide(
             content=cleaned_content,
@@ -427,6 +455,7 @@ def _parse_content(text: str, source_path: Path | None) -> Presentation:
             raw_content=raw_slide,
             notes=notes.strip(),
             images=images,
+            incremental=incremental,
         )
         presentation.slides.append(slide)
 

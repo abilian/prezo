@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import contextlib
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -107,6 +108,121 @@ def _format_recent_files(recent_files: list[str], max_files: int = 5) -> str:
         return ""
 
     return "\n".join(lines)
+
+
+# -----------------------------------------------------------------------------
+# Incremental List Helpers
+# -----------------------------------------------------------------------------
+
+# Pattern matching markdown list items (unordered and ordered)
+_LIST_ITEM_PATTERN = re.compile(r"^(\s*)([-*+]|\d+\.)\s+")
+
+# Pattern matching layout directive markers (:::)
+_LAYOUT_MARKER_PATTERN = re.compile(r"^\s*:::")
+
+
+def count_list_items(content: str) -> int:
+    """Count the number of top-level list items in markdown content.
+
+    Args:
+        content: Markdown content to analyze.
+
+    Returns:
+        Number of top-level list items found.
+
+    """
+    count = 0
+    for line in content.split("\n"):
+        match = _LIST_ITEM_PATTERN.match(line)
+        if match:
+            # Only count top-level items (no leading whitespace)
+            indent = match.group(1)
+            if not indent:
+                count += 1
+    return count
+
+
+# Braille Pattern Blank - invisible character with width, behaves like text for layout
+_INVISIBLE_CHAR = "\u2800"
+
+
+def _make_placeholder(text: str) -> str:
+    """Create an invisible placeholder that matches the visual width of text.
+
+    Uses Braille Pattern Blank characters which are invisible but have
+    width and wrap like normal text.
+    """
+    return _INVISIBLE_CHAR * len(text) if text else _INVISIBLE_CHAR
+
+
+def filter_list_items(content: str, max_items: int) -> str:
+    """Filter content to show only the first N list items.
+
+    Preserves layout directive markers (:::) and other structural elements.
+    Hidden items are replaced with placeholder text of the same length
+    to maintain visual height when text wraps.
+
+    Args:
+        content: Markdown content to filter.
+        max_items: Maximum number of top-level list items to show.
+
+    Returns:
+        Filtered content with only the first N list items visible.
+
+    """
+    if max_items < 0:
+        return content  # Show all
+
+    lines = content.split("\n")
+    result_lines = []
+    item_count = 0
+    in_hidden_item = False
+
+    for line in lines:
+        # Always preserve layout markers (:::)
+        if _LAYOUT_MARKER_PATTERN.match(line):
+            result_lines.append(line)
+            # Reset hidden state when entering/exiting a block
+            in_hidden_item = False
+            continue
+
+        match = _LIST_ITEM_PATTERN.match(line)
+
+        if match:
+            indent = match.group(1)  # Leading whitespace
+            marker = match.group(2)  # List marker (-, *, +, 1.)
+            text_start = match.end()
+            text = line[text_start:]  # The actual text content
+
+            if len(indent) == 0:
+                # Top-level item
+                item_count += 1
+                if item_count <= max_items:
+                    result_lines.append(line)
+                    in_hidden_item = False
+                else:
+                    # Replace with same-length placeholder
+                    placeholder = _make_placeholder(text)
+                    result_lines.append(f"{indent}{marker} {placeholder}")
+                    in_hidden_item = True
+            elif in_hidden_item:
+                # Nested item under hidden parent - also hide
+                placeholder = _make_placeholder(text)
+                result_lines.append(f"{indent}{marker} {placeholder}")
+            else:
+                # Nested item - show if parent is visible
+                result_lines.append(line)
+        elif in_hidden_item:
+            # Content continuation of hidden item - preserve length
+            stripped = line.lstrip()
+            leading = line[: len(line) - len(stripped)]
+            placeholder = _make_placeholder(stripped)
+            result_lines.append(f"{leading}{placeholder}")
+        else:
+            # Non-list line (could be continuation or other content)
+            result_lines.append(line)
+
+    return "\n".join(result_lines)
 
 
 class PrezoCommands(Provider):
@@ -342,6 +458,7 @@ class PrezoApp(App):
     current_slide: reactive[int] = reactive(0)
     notes_visible: reactive[bool] = reactive(False)
     app_theme: reactive[str] = reactive("dark")
+    reveal_index: reactive[int] = reactive(-1)  # -1 = show all, 0+ = show up to index
 
     TITLE = "Prezo"
 
@@ -351,6 +468,7 @@ class PrezoApp(App):
         *,
         watch: bool | None = None,
         config: Config | None = None,
+        incremental: bool = False,
     ) -> None:
         """Initialize the Prezo application.
 
@@ -358,6 +476,7 @@ class PrezoApp(App):
             presentation_path: Path to the Markdown presentation file.
             watch: Whether to enable file watching for live reload.
             config: Optional config override. Uses global config if None.
+            incremental: Whether to display lists incrementally (-I flag).
 
         """
         super().__init__()
@@ -366,6 +485,9 @@ class PrezoApp(App):
 
         self.presentation_path = Path(presentation_path) if presentation_path else None
         self.presentation: Presentation | None = None
+
+        # Incremental lists: CLI flag overrides config
+        self.incremental_cli = incremental
 
         # Use config for watch if not explicitly set
         if watch is None:
@@ -436,11 +558,20 @@ class PrezoApp(App):
             return
 
         old_slide = self.current_slide
+        old_reveal = self.reveal_index
         self.presentation = parse_presentation(self.presentation_path)
 
         if old_slide >= self.presentation.total_slides:
-            self.current_slide = max(0, self.presentation.total_slides - 1)
+            target_slide = max(0, self.presentation.total_slides - 1)
+            self._init_reveal_for_slide(target_slide, show_all=False)
+            self.current_slide = target_slide
         else:
+            # Preserve reveal position if still valid
+            list_count = self._get_list_count(old_slide)
+            if self._is_incremental_enabled(old_slide) and list_count > 0:
+                self.reveal_index = max(0, min(old_reveal, list_count - 1))
+            else:
+                self.reveal_index = -1
             self._update_display()
 
         self.notify("Presentation reloaded", timeout=2)
@@ -453,12 +584,16 @@ class PrezoApp(App):
         # Restore last position or start at 0
         abs_path = str(self.presentation_path.absolute())
         last_pos = self.state.get_position(abs_path)
-        if last_pos < self.presentation.total_slides:
-            self.current_slide = last_pos
-        else:
-            self.current_slide = 0
+        target_slide = last_pos if last_pos < self.presentation.total_slides else 0
 
-        self._update_display()
+        # Set the slide - the watcher will initialize reveal state
+        if self.current_slide == target_slide:
+            # Watcher won't fire, so initialize manually
+            self._init_reveal_for_slide(target_slide, show_all=False)
+            self._update_display()
+        else:
+            self.current_slide = target_slide
+
         self._update_progress_bar()
 
         if self.presentation.title:
@@ -478,6 +613,81 @@ class PrezoApp(App):
         status_bar = self.query_one("#status-bar", StatusBar)
         self._apply_timer_config(status_bar)
         status_bar.reset_timer()
+
+    def _is_incremental_enabled(self, slide_index: int | None = None) -> bool:
+        """Check if incremental mode is enabled for a slide.
+
+        Priority: per-slide directive > CLI flag > config > presentation directive
+
+        Args:
+            slide_index: Slide index to check. Uses current_slide if None.
+
+        Returns:
+            True if incremental lists should be enabled.
+
+        """
+        if not self.presentation or not self.presentation.slides:
+            return False
+
+        idx = slide_index if slide_index is not None else self.current_slide
+        if idx < 0 or idx >= len(self.presentation.slides):
+            return False
+
+        slide = self.presentation.slides[idx]
+
+        # Per-slide directive takes highest priority
+        if slide.incremental is not None:
+            return slide.incremental
+
+        # CLI flag overrides config and presentation directives
+        if self.incremental_cli:
+            return True
+
+        # Presentation directive (from <!-- prezo --> block)
+        if self.presentation.directives.incremental_lists is not None:
+            return self.presentation.directives.incremental_lists
+
+        # Fall back to config
+        return self.config.behavior.incremental_lists
+
+    def _get_list_count(self, slide_index: int | None = None) -> int:
+        """Get the number of top-level list items in a slide.
+
+        Args:
+            slide_index: Slide index to check. Uses current_slide if None.
+
+        Returns:
+            Number of top-level list items.
+
+        """
+        if not self.presentation or not self.presentation.slides:
+            return 0
+
+        idx = slide_index if slide_index is not None else self.current_slide
+        if idx < 0 or idx >= len(self.presentation.slides):
+            return 0
+
+        slide = self.presentation.slides[idx]
+        return count_list_items(slide.content)
+
+    def _init_reveal_for_slide(
+        self, slide_index: int, *, show_all: bool = False
+    ) -> None:
+        """Initialize reveal state for a specific slide.
+
+        Args:
+            slide_index: The slide to initialize for.
+            show_all: If True, reveal all items. If False, start with first item.
+
+        """
+        if self._is_incremental_enabled(slide_index):
+            list_count = self._get_list_count(slide_index)
+            if list_count > 0:
+                self.reveal_index = (list_count - 1) if show_all else 0
+            else:
+                self.reveal_index = -1  # No list items, show all content
+        else:
+            self.reveal_index = -1  # Incremental disabled, show all
 
     def _apply_presentation_directives(self) -> None:
         """Apply presentation-specific directives on top of config."""
@@ -583,9 +793,13 @@ class PrezoApp(App):
                 image_widget.clear()
 
         # Use cleaned content (bg images already removed by parser)
-        self.query_one("#slide-content", SlideContent).set_content(
-            slide.content.strip()
-        )
+        content = slide.content.strip()
+
+        # Apply incremental filtering if enabled
+        if self._is_incremental_enabled() and self.reveal_index >= 0:
+            content = filter_list_items(content, self.reveal_index + 1)
+
+        self.query_one("#slide-content", SlideContent).set_content(content)
 
         container = self.query_one("#slide-container", VerticalScroll)
         container.scroll_home(animate=False)
@@ -594,13 +808,26 @@ class PrezoApp(App):
         self._update_notes()
 
     def _update_progress_bar(self) -> None:
-        """Update the progress bar."""
+        """Update the progress bar and reveal indicator."""
         if not self.presentation:
             return
 
         status = self.query_one("#status-bar", StatusBar)
         status.current = self.current_slide
         status.total = self.presentation.total_slides
+
+        # Update reveal indicator
+        if self._is_incremental_enabled():
+            list_count = self._get_list_count()
+            if list_count > 0 and self.reveal_index >= 0:
+                status.reveal_current = self.reveal_index
+                status.reveal_total = list_count
+            else:
+                status.reveal_current = -1
+                status.reveal_total = 0
+        else:
+            status.reveal_current = -1
+            status.reveal_total = 0
 
     def _update_notes(self) -> None:
         """Update the notes panel content."""
@@ -617,6 +844,9 @@ class PrezoApp(App):
 
     def watch_current_slide(self, old_value: int, new_value: int) -> None:
         """React to slide changes."""
+        # Determine direction and initialize reveal state appropriately
+        going_back = new_value < old_value
+        self._init_reveal_for_slide(new_value, show_all=going_back)
         self._update_display()
         self._save_position()
 
@@ -636,15 +866,41 @@ class PrezoApp(App):
             notes_panel.remove_class("visible")
 
     def action_next_slide(self) -> None:
-        """Go to the next slide."""
-        if (
-            self.presentation
-            and self.current_slide < self.presentation.total_slides - 1
-        ):
+        """Go to the next slide or reveal next list item."""
+        if not self.presentation:
+            return
+
+        # Check if we should reveal next item instead of advancing slide
+        if self._is_incremental_enabled():
+            list_count = self._get_list_count()
+            if (
+                list_count > 0
+                and self.reveal_index >= 0
+                and self.reveal_index < list_count - 1
+            ):
+                self.reveal_index += 1
+                self._update_display()
+                self._update_progress_bar()
+                return
+
+        # No more items to reveal, go to next slide
+        if self.current_slide < self.presentation.total_slides - 1:
+            # The watcher will initialize reveal_index for the new slide
             self.current_slide += 1
 
     def action_prev_slide(self) -> None:
-        """Go to the previous slide."""
+        """Go to the previous slide or hide last revealed item."""
+        if not self.presentation:
+            return
+
+        # Check if we should hide last item instead of going back
+        if self._is_incremental_enabled() and self.reveal_index > 0:
+            self.reveal_index -= 1
+            self._update_display()
+            self._update_progress_bar()
+            return
+
+        # Go to previous slide (watcher will show all items)
         if self.current_slide > 0:
             self.current_slide -= 1
 
@@ -931,6 +1187,7 @@ def run_app(
     *,
     watch: bool | None = None,
     config: Config | None = None,
+    incremental: bool = False,
 ) -> None:
     """Run the Prezo application.
 
@@ -938,7 +1195,10 @@ def run_app(
         presentation_path: Path to the presentation file.
         watch: Whether to watch for file changes. Uses config default if None.
         config: Optional config override. Uses global config if None.
+        incremental: Whether to display lists incrementally (-I flag).
 
     """
-    app = PrezoApp(presentation_path, watch=watch, config=config)
+    app = PrezoApp(
+        presentation_path, watch=watch, config=config, incremental=incremental
+    )
     app.run()

@@ -15,6 +15,7 @@ from prezo.parser import (
     extract_images,
     extract_notes,
     extract_prezo_directives,
+    extract_slide_incremental,
     parse_presentation,
     split_slides,
 )
@@ -653,3 +654,122 @@ class TestMarpSizeDirectives:
         images = extract_images(content)
         assert images[0].width is None
         assert images[0].height is None
+
+
+class TestExtractSlideIncremental:
+    """Tests for extract_slide_incremental function."""
+
+    def test_no_directive_returns_none(self):
+        """Test that no directive returns None."""
+        content = "# Slide\n\n- Item 1\n- Item 2"
+        result = extract_slide_incremental(content)
+        assert result is None
+
+    def test_incremental_directive_returns_true(self):
+        """Test that <!-- incremental --> returns True."""
+        content = "# Slide\n\n<!-- incremental -->\n\n- Item 1\n- Item 2"
+        result = extract_slide_incremental(content)
+        assert result is True
+
+    def test_no_incremental_directive_returns_false(self):
+        """Test that <!-- no-incremental --> returns False."""
+        content = "# Slide\n\n<!-- no-incremental -->\n\n- Item 1\n- Item 2"
+        result = extract_slide_incremental(content)
+        assert result is False
+
+    def test_case_insensitive(self):
+        """Test that directives are case insensitive."""
+        content = "# Slide\n\n<!-- INCREMENTAL -->\n\n- Item 1"
+        result = extract_slide_incremental(content)
+        assert result is True
+
+    def test_directive_with_extra_whitespace(self):
+        """Test directive with extra whitespace."""
+        content = "# Slide\n\n<!--   incremental   -->\n\n- Item 1"
+        result = extract_slide_incremental(content)
+        assert result is True
+
+
+class TestSlideIncremental:
+    """Tests for Slide.incremental field."""
+
+    def test_slide_has_incremental_field(self):
+        """Test that Slide has incremental field."""
+        slide = Slide(content="# Hello", index=0)
+        assert slide.incremental is None
+
+    def test_slide_with_incremental_set(self):
+        """Test Slide with incremental set."""
+        slide = Slide(content="# Hello", index=0, incremental=True)
+        assert slide.incremental is True
+
+    def test_parsed_slide_extracts_incremental(self):
+        """Test that parsed slide extracts incremental directive."""
+        md = """# Slide
+
+<!-- incremental -->
+
+- Item 1
+- Item 2
+"""
+        pres = parse_presentation(md)
+        assert len(pres.slides) == 1
+        assert pres.slides[0].incremental is True
+
+    def test_parsed_slide_extracts_no_incremental(self):
+        """Test that parsed slide extracts no-incremental directive."""
+        md = """# Slide
+
+<!-- no-incremental -->
+
+- Item 1
+- Item 2
+"""
+        pres = parse_presentation(md)
+        assert pres.slides[0].incremental is False
+
+
+class TestIncrementalListsDirective:
+    """Tests for incremental_lists in PresentationConfig."""
+
+    def test_default_value_is_none(self):
+        """Test that default value is None."""
+        config = PresentationConfig()
+        assert config.incremental_lists is None
+
+    def test_extract_from_prezo_block(self):
+        """Test extracting incremental_lists from prezo block."""
+        content = """<!-- prezo
+incremental_lists: true
+-->
+
+# Slide
+"""
+        config = extract_prezo_directives(content)
+        assert config.incremental_lists is True
+
+    def test_extract_false_value(self):
+        """Test extracting false value."""
+        content = """<!-- prezo
+incremental_lists: false
+-->
+
+# Slide
+"""
+        config = extract_prezo_directives(content)
+        assert config.incremental_lists is False
+
+    def test_alternative_key_names(self):
+        """Test alternative key names like incremental."""
+        content = """<!-- prezo
+incremental: yes
+-->
+"""
+        config = extract_prezo_directives(content)
+        assert config.incremental_lists is True
+
+    def test_merge_to_dict_includes_incremental(self):
+        """Test that merge_to_dict includes incremental_lists."""
+        config = PresentationConfig(incremental_lists=True)
+        result = config.merge_to_dict()
+        assert result["behavior"]["incremental_lists"] is True

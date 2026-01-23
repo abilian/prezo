@@ -69,6 +69,7 @@ class BehaviorConfig:
 
     auto_reload: bool = True
     reload_interval: float = 1.0
+    incremental_lists: bool = False  # Display lists one item at a time
 
 
 @dataclass
