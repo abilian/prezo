@@ -538,11 +538,9 @@ class BoxRenderable:
         self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
         """Render content in a bordered panel."""
-        yield Text("")
-        md = Markdown(self.content)
-        panel = Panel(md, title=self.title if self.title else None)
+        content = _render_box_content(self.content)
+        panel = Panel(content, title=self.title if self.title else None)
         yield panel
-        yield Text("")
 
     def __rich_measure__(
         self, console: Console, options: ConsoleOptions
@@ -644,7 +642,10 @@ def render_layout(
     """
     renderables: list[RenderableType] = []
 
-    for block in blocks:
+    for i, block in enumerate(blocks):
+        # Add spacing before box blocks (except the first one)
+        if block.type == "box" and i > 0:
+            renderables.append(Text(""))
         renderables.extend(_render_block(block))
 
     if len(renderables) == 1:
@@ -655,6 +656,96 @@ def render_layout(
 # -----------------------------------------------------------------------------
 # Utilities
 # -----------------------------------------------------------------------------
+
+# Pattern for **bold** text
+_BOLD_PATTERN = re.compile(r"\*\*(.+?)\*\*")
+
+# Pattern for bullet list items
+_BULLET_PATTERN = re.compile(r"^[-*+]\s+(.*)$")
+
+# Pattern for numbered list items
+_NUMBERED_PATTERN = re.compile(r"^(\d+\.)\s+(.*)$")
+
+
+def _parse_inline_formatting(text: str) -> Text:
+    """Parse inline markdown formatting like **bold**.
+
+    Args:
+        text: Text with possible **bold** markers.
+
+    Returns:
+        Rich Text object with appropriate styling.
+
+    """
+    result = Text()
+    last_end = 0
+
+    for match in _BOLD_PATTERN.finditer(text):
+        # Add text before match
+        if match.start() > last_end:
+            result.append(text[last_end : match.start()])
+        # Add bold text
+        result.append(match.group(1), style="bold")
+        last_end = match.end()
+
+    # Add remaining text
+    if last_end < len(text):
+        result.append(text[last_end:])
+
+    return result
+
+
+def _render_box_content(content: str) -> Text:
+    """Render box content with compact spacing.
+
+    Handles the common pattern of a title line followed by a bullet list,
+    without the extra blank line that Rich's Markdown adds.
+
+    Args:
+        content: Markdown content for the box.
+
+    Returns:
+        Rich Text object with compact formatting.
+
+    """
+    lines = content.strip().split("\n")
+    if not lines:
+        return Text()
+
+    result = Text()
+
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+
+        if not stripped:
+            # Blank line - add single newline
+            if i > 0:
+                result.append("\n")
+            continue
+
+        # Add newline before this line (except first)
+        if i > 0 and result.plain and not result.plain.endswith("\n"):
+            result.append("\n")
+
+        # Check for bullet list item
+        bullet_match = _BULLET_PATTERN.match(stripped)
+        if bullet_match:
+            result.append("  • ")
+            result.append(_parse_inline_formatting(bullet_match.group(1)))
+            continue
+
+        # Check for numbered list item
+        numbered_match = _NUMBERED_PATTERN.match(stripped)
+        if numbered_match:
+            result.append(f"  {numbered_match.group(1)} ")
+            result.append(_parse_inline_formatting(numbered_match.group(2)))
+            continue
+
+        # Regular text line
+        result.append(_parse_inline_formatting(stripped))
+
+    return result
+
 
 # ANSI escape sequence pattern
 _ANSI_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
