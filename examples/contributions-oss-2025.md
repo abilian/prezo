@@ -1,117 +1,117 @@
 ---
-title: Contributions Open Source 2025
+title: Open Source Contributions 2025
 author: Abilian
 theme: dracula
 ---
 
-# Contributions Open Source 2025
+# Open Source Contributions 2025
 
-## Abilian - Bilan annuel
+## Abilian - Annual Review
 
-L'Open Source est plus que jamais le moteur de notre R&D.
+Open Source is more than ever the driving force of our R&D.
 
-**9 nouveaux projets** sortis en 2025, pour :
+**9 new projects** released in 2025, to:
 
-- **Sécuriser & fiabiliser** vos déploiements
-- **Accélérer et fluidifier** la préparation de vos données
-- Renforcer la **qualité** de vos actifs logiciels
-- Optimiser la qualité et l'impact de votre **documentation**
-
----
-
-# Outils de Documentation
-
-::: box
-
-**Prezo** - Présentations Markdown dans le terminal
-
-- Interface TUI moderne et élégante
-- Format Markdown + extensions (MARP, Pandoc...)
-- Export PDF, HTML, PNG, SVG
-- Thèmes personnalisables
-
-:::
-
-::: box
-
-**Validoc** - Documentation exécutable
-
-- Tests intégrés dans la documentation Markdown
-- Garantit une doc toujours à jour
-
-:::
-
-::: box
-
-**md2typst** - Markdown vers Typst
-
-- Conversion robuste via Typst
-- Alternative moderne à LaTeX
-- Mise en page professionnelle
-
-:::
+- **Secure & stabilize** your deployments
+- **Accelerate & streamline** your data preparation
+- Strengthen the **quality** of your software assets
+- Optimize the quality and impact of your **documentation**
 
 ---
 
-# Infrastructure & Données
+# Documentation Tools
 
 ::: box
 
-**KenobiX** - Base documentaire locale
+**Prezo** - Markdown presentations in the terminal
 
-- Optimisée pour l'IA & exploration
-- Indexation intelligente
-- Modèle semi-structuré
+- Modern and elegant TUI interface
+- Markdown format + extensions (MARP, Pandoc...)
+- Export to PDF, HTML, PNG, SVG
+- Customizable themes
 
 :::
 
 ::: box
 
-**LeWAF** - Pare-feu applicatif Python
+**Validoc** - Executable documentation
 
-- Protection native des apps Python
-- Compatible OWASP Core Rule Set
-- Détection d'injections SQL/XSS
-- Intégration WSGI/ASGI
+- Tests embedded in Markdown documentation
+- Ensures documentation is always up-to-date
 
 :::
 
 ::: box
 
-**CmisSH** - Shell moderne pour GED
-- Gestion documentaire en CLI via le protocole CMIS
-- Commandes intuitives type Unix
+**md2typst** - Markdown to Typst
+
+- Robust conversion via Typst
+- Modern alternative to LaTeX
+- Professional typesetting
 
 :::
 
 ---
 
-# Bibliothèques et Tests
+# Infrastructure & Data
 
 ::: box
 
-**py-capnweb** - Protocol RPC Cap'n Web
+**KenobiX** - Local document database
 
-- Implémentation Python complète
-- Sérialisation ultra-rapide
-- Interopérabilité multi-langages
+- Optimized for AI & exploration
+- Intelligent indexing
+- Semi-structured model
+
+:::
+
+::: box
+
+**LeWAF** - Python application firewall
+
+- Native protection for Python apps
+- OWASP Core Rule Set compatible
+- SQL/XSS injection detection
+- WSGI/ASGI integration
+
+:::
+
+::: box
+
+**CmisSH** - Modern shell for ECM
+- Document management via CLI using the CMIS protocol
+- Unix-like intuitive commands
+
+:::
+
+---
+
+# Libraries and Testing
+
+::: box
+
+**py-capnweb** - Cap'n Web RPC Protocol
+
+- Complete Python implementation
+- Ultra-fast serialization
+- Multi-language interoperability
 
 :::
 
 ::: box
 
 **tstrings-backport** - Template Strings
-- Backport de Python 3.14
-- Interpolation sécurisée
-- Compatible Python 3.10+
+- Backport from Python 3.14
+- Secure interpolation
+- Compatible with Python 3.10+
 
 :::
 
 ::: box
 
-**WebDAV TCK** - Suite de conformité
-- Tests automatisés
-- Validation complète WebDAV
-- Récriture moderne de Litmus
+**WebDAV TCK** - Conformance test suite
+- Automated tests
+- Complete WebDAV validation
+- Modern rewrite of Litmus
 
 :::
