@@ -8,6 +8,7 @@ Display presentations written in Markdown using conventions similar to those of 
 
 - **Markdown presentations** - MARP/Deckset format with `---` slide separators
 - **Column layouts** - Pandoc-style fenced divs for multi-column slides (`::: columns`)
+- **Incremental lists** - Reveal list items one at a time (`-I` flag, like Pandoc)
 - **Live reload** - Auto-refresh when file changes (1s polling)
 - **Keyboard navigation** - Vim-style keys, arrow keys, and more
 - **Slide overview** - Grid view for quick navigation (`o`)
@@ -58,6 +59,9 @@ prezo -c myconfig.toml presentation.md
 
 # Set image rendering mode
 prezo --image-mode ascii presentation.md   # Options: auto, kitty, sixel, iterm, ascii, none
+
+# Incremental list reveal (reveal items one at a time)
+prezo -I presentation.md
 
 # Export to PDF
 prezo -e pdf presentation.md

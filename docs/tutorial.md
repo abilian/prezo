@@ -271,6 +271,63 @@ Layout blocks can be nested inside columns:
 :::
 ```
 
+## Incremental Lists
+
+Reveal list items one at a time during your presentation, similar to Pandoc's `-i` flag. This helps keep your audience focused on the current point.
+
+### Enabling Incremental Mode
+
+Use the `-I` or `--incremental` flag when running Prezo:
+
+```bash
+prezo -I presentation.md
+```
+
+Or enable it in your presentation's frontmatter or directives:
+
+```markdown
+---
+incremental: true
+---
+```
+
+### How It Works
+
+With incremental mode enabled:
+- Press `Right`/`Space`/`j` to reveal the next list item
+- Press `Left`/`k` to go back (shows all items when navigating backwards)
+- When all items are revealed, the next press advances to the next slide
+
+### Per-Slide Control
+
+You can override the global setting for specific slides using directives:
+
+```markdown
+<!-- prezo
+incremental: false
+-->
+
+# This slide shows all items at once
+
+- Item 1
+- Item 2
+- Item 3
+```
+
+### Works with Layout Blocks
+
+Incremental lists work inside layout blocks like boxes and columns:
+
+```markdown
+::: box "Features"
+
+- First feature (revealed first)
+- Second feature (revealed second)
+- Third feature (revealed third)
+
+:::
+```
+
 ## Presenter Notes
 
 Add presenter notes that are only visible in the notes panel (press `p` to toggle). There are two syntax options:
@@ -378,6 +435,7 @@ countdown_minutes: 45
 | `show_elapsed` | true/false | Show elapsed time |
 | `countdown_minutes` | number | Countdown timer (0 = disabled) |
 | `image_mode` | auto, kitty, sixel, iterm, ascii, none | Image rendering mode |
+| `incremental` | true/false | Reveal list items one at a time |
 
 ## Keyboard Shortcuts
 
@@ -385,8 +443,8 @@ countdown_minutes: 45
 
 | Key | Action |
 |-----|--------|
-| `Right`, `Space`, `j` | Next slide |
-| `Left`, `k` | Previous slide |
+| `Right`, `Space`, `j` | Next slide (or next list item in incremental mode) |
+| `Left`, `k` | Previous slide (or show all items in incremental mode) |
 | `Home`, `g` | First slide |
 | `End`, `G` | Last slide |
 | `:` | Go to slide number |
@@ -431,6 +489,9 @@ prezo presentation.md --no-watch
 
 # Use a specific image rendering mode
 prezo presentation.md --image-mode kitty
+
+# Enable incremental list reveal
+prezo presentation.md -I
 ```
 
 ### Exporting Presentations
@@ -500,6 +561,7 @@ show_elapsed = true
 
 [presentation]
 countdown_minutes = 0
+incremental = false  # Reveal list items one at a time
 
 [images]
 mode = "auto"  # auto, kitty, sixel, iterm, ascii, none
