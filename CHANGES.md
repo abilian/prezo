@@ -4,11 +4,15 @@ All notable changes to Prezo are documented in this file.
 
 Starting with version 2026.1.1, Prezo uses [CalVer](https://calver.org/) versioning (YYYY.M.patch).
 
-## [2026.1.4] - 2026-01-27
+## [2026.1.4] - 2026-02-03
+
+### Added
+- **Version flag** - New `-v/--version` CLI option to display version
 
 ### Fixed
 - **Box layout spacing** - Stacked boxes now have exactly one blank line between them (was two)
 - **Box content spacing** - Title followed by list no longer has extra blank line in boxes
+- **`--no-chrome` export** - Fixed blank page output when exporting without window decorations
 - Custom box content renderer for compact spacing (avoids Rich Markdown's paragraph gaps)
 
 ## [2026.1.3] - 2026-01-22

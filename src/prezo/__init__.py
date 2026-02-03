@@ -78,12 +78,28 @@ def _validate_file(path: Path, must_exist: bool = True) -> Path:
     return resolved
 
 
+def _get_version() -> str:
+    """Get the package version from metadata."""
+    from importlib.metadata import version  # noqa: PLC0415
+
+    try:
+        return version("prezo")
+    except Exception:
+        return "unknown"
+
+
 def main() -> None:
     """Entry point for Prezo."""
     parser = argparse.ArgumentParser(
         prog="prezo",
         description="TUI-based presentation tool for Markdown slides",
         epilog="For more information, visit: https://github.com/abilian/prezo",
+    )
+    parser.add_argument(
+        "-v",
+        "--version",
+        action="version",
+        version=f"%(prog)s {_get_version()}",
     )
     parser.add_argument(
         "file",

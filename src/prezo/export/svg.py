@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import re
 
 from rich.console import Console
 from rich.markdown import Markdown
@@ -13,66 +14,62 @@ from rich.text import Text
 from prezo.layout import has_layout_blocks, parse_layout, render_layout
 from prezo.themes import get_theme
 
-# SVG template without window chrome (for printing)
-# Uses Rich's template format: {var} for substitution, {{ }} for literal braces
-SVG_FORMAT_NO_CHROME = """\
-<svg class="rich-terminal" viewBox="0 0 {width} {height}" xmlns="http://www.w3.org/2000/svg">
-    <!-- Generated with Rich https://www.textualize.io -->
-    <style>
+# Patterns for stripping window chrome from SVG
+# Window border rect with rounded corners
+_WINDOW_BORDER_PATTERN = re.compile(
+    r'<rect fill="[^"]*" stroke="rgba\(255,255,255,[^"]*\)" '
+    r'stroke-width="1" x="1" y="1" [^/]*/>'
+)
+# Title text element
+_TITLE_TEXT_PATTERN = re.compile(r'<text class="[^"]*-title"[^>]*>[^<]*</text>')
+# Traffic light buttons group
+_TRAFFIC_LIGHTS_PATTERN = re.compile(
+    r'<g transform="translate\(26,22\)">\s*'
+    r'<circle[^/]*/>\s*<circle[^/]*/>\s*<circle[^/]*/>\s*</g>'
+)
+# Content group transform (to adjust offset)
+_CONTENT_TRANSFORM_PATTERN = re.compile(
+    r'<g transform="translate\((\d+(?:\.\d+)?), (\d+(?:\.\d+)?)\)" '
+    r'clip-path="url\(#([^"]+)\)">'
+)
 
-    @font-face {{
-        font-family: "Fira Code";
-        src: local("FiraCode-Regular"),
-                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Regular.woff2") format("woff2"),
-                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Regular.woff") format("woff");
-        font-style: normal;
-        font-weight: 400;
-    }}
-    @font-face {{
-        font-family: "Fira Code";
-        src: local("FiraCode-Bold"),
-                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Bold.woff2") format("woff2"),
-                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Bold.woff") format("woff");
-        font-style: bold;
-        font-weight: 700;
-    }}
 
-    .{{unique_id}}-matrix {{
-        font-family: Fira Code, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", monospace;
-        font-size: {{char_height}}px;
-        line-height: {{line_height}}px;
-        font-variant-east-asian: full-width;
-        /* Disable ligatures and ensure consistent character widths */
-        font-feature-settings: "liga" 0, "calt" 0, "dlig" 0;
-        font-variant-ligatures: none;
-        letter-spacing: 0;
-        word-spacing: 0;
-        white-space: pre;
-    }}
+def _strip_window_chrome(svg: str) -> str:
+    """Remove window decorations from SVG for printing.
 
-    .{{unique_id}}-matrix text {{
-        /* Force uniform character spacing for box-drawing chars */
-        text-rendering: geometricPrecision;
-    }}
+    Removes:
+    - Window border (rounded rect with stroke)
+    - Title text
+    - Traffic light buttons (red/yellow/green circles)
 
-    {{styles}}
-    </style>
+    Also adjusts the content position to start at origin.
 
-    <defs>
-    <clipPath id="{{unique_id}}-clip-terminal">
-      <rect x="0" y="0" width="{{width}}" height="{{height}}" />
-    </clipPath>
-    {{lines}}
-    </defs>
+    Args:
+        svg: SVG string with window chrome.
 
-    <g transform="translate(0, 0)" clip-path="url(#{{unique_id}}-clip-terminal)">
-    {{backgrounds}}
-    <g class="{{unique_id}}-matrix">
-    {{matrix}}
-    </g>
-    </g>
-</svg>
-"""
+    Returns:
+        SVG string without window chrome.
+
+    """
+    # Remove window border
+    svg = _WINDOW_BORDER_PATTERN.sub("", svg)
+
+    # Remove title text
+    svg = _TITLE_TEXT_PATTERN.sub("", svg)
+
+    # Remove traffic lights
+    svg = _TRAFFIC_LIGHTS_PATTERN.sub("", svg)
+
+    # Adjust content transform to remove offset
+    # The content is typically at translate(9, 41) with chrome
+    # Move it to translate(0, 0) for clean output
+    def adjust_transform(match: re.Match) -> str:
+        clip_id = match.group(3)
+        return f'<g transform="translate(0, 0)" clip-path="url(#{clip_id})">'
+
+    svg = _CONTENT_TRANSFORM_PATTERN.sub(adjust_transform, svg)
+
+    return svg
 
 
 def render_slide_to_svg(
@@ -148,11 +145,8 @@ def render_slide_to_svg(
     status = Text(status_text, style=Style(bgcolor=theme.primary, color=theme.text))
     console.print(status, style=base_style)
 
-    # Export to SVG
-    if chrome:
-        svg = console.export_svg(title=f"Slide {slide_num + 1}")
-    else:
-        svg = console.export_svg(code_format=SVG_FORMAT_NO_CHROME)
+    # Export to SVG (always with Rich's default chrome first)
+    svg = console.export_svg(title=f"Slide {slide_num + 1}")
 
     # Add emoji font fallbacks to font-family declarations
     # Rich only specifies "Fira Code, monospace" which lacks emoji glyphs
@@ -164,7 +158,13 @@ def render_slide_to_svg(
     # Add background color to SVG (Rich doesn't set it by default)
     # Insert a rect element right after the opening svg tag
     bg_rect = f'<rect width="100%" height="100%" fill="{theme.background}"/>'
-    return svg.replace(
+    svg = svg.replace(
         'xmlns="http://www.w3.org/2000/svg">',
         f'xmlns="http://www.w3.org/2000/svg">\n    {bg_rect}',
     )
+
+    # Remove window chrome if requested (for printing)
+    if not chrome:
+        svg = _strip_window_chrome(svg)
+
+    return svg
