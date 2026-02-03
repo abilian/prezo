@@ -458,6 +458,7 @@ countdown_minutes: 45
 | `t` | Show table of contents |
 | `p` | Toggle presenter notes |
 | `c` | Toggle clock display |
+| `S` | Start/stop timer |
 | `T` | Cycle through themes |
 | `b` | Blackout screen |
 | `w` | Whiteout screen |

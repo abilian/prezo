@@ -8,11 +8,13 @@ Starting with version 2026.1.1, Prezo uses [CalVer](https://calver.org/) version
 
 ### Added
 - **Version flag** - New `-v/--version` CLI option to display version
+- **Timer start/stop** - New `S` key to pause/resume the elapsed timer (shows ⏸ indicator when paused)
 
 ### Fixed
 - **Box layout spacing** - Stacked boxes now have exactly one blank line between them (was two)
 - **Box content spacing** - Title followed by list no longer has extra blank line in boxes
 - **`--no-chrome` export** - Fixed blank page output when exporting without window decorations
+- **Export vertical spacing** - Removed wasted blank lines at bottom of PDF/PNG/SVG exports
 - Custom box content renderer for compact spacing (avoids Rich Markdown's paragraph gaps)
 
 ## [2026.1.3] - 2026-01-22

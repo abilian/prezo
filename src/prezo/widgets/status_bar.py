@@ -59,11 +59,14 @@ class StatusBar(Static):
     # Incremental reveal indicator
     reveal_current: reactive[int] = reactive(-1)  # -1 = not in reveal mode
     reveal_total: reactive[int] = reactive(0)
+    # Timer running state
+    timer_running: reactive[bool] = reactive(True)
 
     def __init__(self, **kwargs) -> None:
         """Initialize the status bar."""
         super().__init__(**kwargs)
         self._start_time: datetime | None = None
+        self._elapsed_when_paused: float = 0.0  # Accumulated time when paused
         self._timer: Timer | None = None
 
     def on_mount(self) -> None:
@@ -96,14 +99,15 @@ class StatusBar(Static):
             )
 
         if self.show_elapsed and self._start_time:
-            elapsed = datetime.now(tz=timezone.utc) - self._start_time
-            elapsed_secs = int(elapsed.total_seconds())
-            clock_parts.append(f"+{format_time(elapsed_secs)}")
+            elapsed_secs = self._get_elapsed_seconds()
+            # Show pause indicator when timer is stopped
+            pause_indicator = " ⏸" if not self.timer_running else ""
+            clock_parts.append(f"+{format_time(elapsed_secs)}{pause_indicator}")
 
         if self.show_countdown and self.countdown_minutes > 0 and self._start_time:
             total_secs = self.countdown_minutes * 60
-            elapsed = datetime.now(tz=timezone.utc) - self._start_time
-            remaining = total_secs - int(elapsed.total_seconds())
+            elapsed_secs = self._get_elapsed_seconds()
+            remaining = total_secs - elapsed_secs
             clock_parts.append(f"-{format_time(remaining)}")
 
         clock = " │ ".join(clock_parts) if clock_parts else ""
@@ -113,9 +117,35 @@ class StatusBar(Static):
             return f" {progress}{reveal}    {clock} "
         return f" {progress}{reveal} "
 
+    def _get_elapsed_seconds(self) -> int:
+        """Get total elapsed seconds, accounting for pauses."""
+        if not self._start_time:
+            return 0
+        if self.timer_running:
+            current_elapsed = datetime.now(tz=timezone.utc) - self._start_time
+            return int(current_elapsed.total_seconds() + self._elapsed_when_paused)
+        # When paused, just return the accumulated time
+        return int(self._elapsed_when_paused)
+
     def reset_timer(self) -> None:
         """Reset the elapsed timer."""
         self._start_time = datetime.now(tz=timezone.utc)
+        self._elapsed_when_paused = 0.0
+        self.timer_running = True
+        self.refresh()
+
+    def toggle_timer(self) -> None:
+        """Start or stop the elapsed timer."""
+        if self.timer_running:
+            # Pausing: save current elapsed time
+            if self._start_time:
+                current_elapsed = datetime.now(tz=timezone.utc) - self._start_time
+                self._elapsed_when_paused += current_elapsed.total_seconds()
+            self.timer_running = False
+        else:
+            # Resuming: reset start time (accumulated time is preserved)
+            self._start_time = datetime.now(tz=timezone.utc)
+            self.timer_running = True
         self.refresh()
 
     def toggle_clock(self) -> None:
@@ -158,6 +188,10 @@ class StatusBar(Static):
 
     def watch_reveal_total(self, value: int) -> None:
         """React to reveal total changes."""
+        self.refresh()
+
+    def watch_timer_running(self, value: bool) -> None:
+        """React to timer running state changes."""
         self.refresh()
 
 

@@ -67,6 +67,7 @@ prezo <presentation.md>
 | **t** | Table of contents |
 | **p** | Toggle notes |
 | **c** | Toggle clock |
+| **S** | Start/stop timer |
 | **b** | Blackout screen |
 | **e** | Edit current slide |
 | **r** | Reload file |
@@ -258,6 +259,7 @@ class PrezoCommands(Provider):
                 ("Search Slides", "search", "Search slides by content (/)"),
                 ("Toggle Notes", "toggle_notes", "Show/hide presenter notes (p)"),
                 ("Toggle Clock", "toggle_clock", "Cycle clock display mode (c)"),
+                ("Start/Stop Timer", "toggle_timer", "Start or stop elapsed timer (S)"),
                 ("Help", "show_help", "Show keyboard shortcuts (?)"),
             ]
         )
@@ -446,6 +448,7 @@ class PrezoApp(App):
         Binding("t", "show_toc", "TOC", show=True),
         Binding("p", "toggle_notes", "Notes", show=True),
         Binding("c", "toggle_clock", "Clock", show=False),
+        Binding("S", "toggle_timer", "Timer", show=False),
         Binding("T", "cycle_theme", "Theme", show=False),
         Binding("b", "blackout", "Blackout", show=False),
         Binding("w", "whiteout", "Whiteout", show=False),
@@ -976,6 +979,10 @@ class PrezoApp(App):
     def action_toggle_clock(self) -> None:
         """Cycle through clock display modes."""
         self.query_one("#status-bar", StatusBar).toggle_clock()
+
+    def action_toggle_timer(self) -> None:
+        """Start or stop the elapsed timer."""
+        self.query_one("#status-bar", StatusBar).toggle_timer()
 
     def action_cycle_theme(self) -> None:
         """Cycle through available themes."""

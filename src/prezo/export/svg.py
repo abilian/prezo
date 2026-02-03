@@ -118,8 +118,11 @@ def render_slide_to_svg(
     else:
         slide_content = Markdown(content)
 
-    # Create a panel with the slide content (height - 2 for status bar and padding)
-    panel_height = height - 2
+    # Create a panel with the slide content
+    # Panel takes full height minus status bar line
+    # Note: Rich's export_svg adds chrome which takes ~2 lines at top
+    # So we use height to maximize content area
+    panel_height = height
     panel = Panel(
         slide_content,
         title=f"[{theme.text_muted}]Slide {slide_num + 1}/{total_slides}[/]",
@@ -131,8 +134,8 @@ def render_slide_to_svg(
         height=panel_height,
     )
 
-    # Print to the recording console with background
-    console.print(panel, style=base_style)
+    # Print to the recording console with background (no trailing newline)
+    console.print(panel, style=base_style, end="")
 
     # Add status bar at the bottom
     progress = (slide_num + 1) / total_slides
@@ -143,7 +146,7 @@ def render_slide_to_svg(
     # Pad status bar to full width
     status_text = status_text.ljust(width)
     status = Text(status_text, style=Style(bgcolor=theme.primary, color=theme.text))
-    console.print(status, style=base_style)
+    console.print(status, style=base_style, end="")
 
     # Export to SVG (always with Rich's default chrome first)
     svg = console.export_svg(title=f"Slide {slide_num + 1}")

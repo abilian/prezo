@@ -30,6 +30,7 @@ Quick reference for Prezo - terminal-based Markdown presentations.
 |-----|--------|
 | `T` | Cycle theme |
 | `c` | Toggle clock/timer |
+| `S` | Start/stop timer |
 | `b` | Blackout screen |
 | `w` | Whiteout screen |
 
