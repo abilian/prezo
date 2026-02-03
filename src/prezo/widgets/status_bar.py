@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
+from rich.text import Text
 from textual.reactive import reactive
 from textual.widgets import Static
 
@@ -61,6 +62,8 @@ class StatusBar(Static):
     reveal_total: reactive[int] = reactive(0)
     # Timer running state
     timer_running: reactive[bool] = reactive(True)
+    # Time budget for pacing indicator (0 = disabled)
+    time_budget_minutes: reactive[int] = reactive(0)
 
     def __init__(self, **kwargs) -> None:
         """Initialize the status bar."""
@@ -78,18 +81,26 @@ class StatusBar(Static):
         """Timer callback to refresh the display."""
         self.refresh()
 
-    def render(self) -> str:
+    def render(self) -> Text:
         """Render the status bar content."""
+        result = Text()
+
         # Progress part
         bar = format_progress_bar(self.current, self.total, width=20)
-        progress = f"{bar} {self.current + 1}/{self.total}"
+        progress = f" {bar} {self.current + 1}/{self.total}"
+        result.append(progress)
 
         # Reveal indicator (shows remaining list items)
-        reveal = ""
         if self.reveal_current >= 0 and self.reveal_total > 0:
             remaining = self.reveal_total - self.reveal_current - 1
             if remaining > 0:
-                reveal = f" [+{remaining}]"
+                result.append(f" [+{remaining}]")
+
+        # Pacing indicator (if time budget is set)
+        pacing = self._get_pacing_indicator()
+        if pacing:
+            result.append("    ")
+            result.append_text(pacing)
 
         # Clock part
         clock_parts = []
@@ -110,12 +121,59 @@ class StatusBar(Static):
             remaining = total_secs - elapsed_secs
             clock_parts.append(f"-{format_time(remaining)}")
 
-        clock = " │ ".join(clock_parts) if clock_parts else ""
+        if clock_parts:
+            # Add separator if we have pacing or progress
+            result.append("    ")
+            result.append(" │ ".join(clock_parts))
 
-        # Combine with spacing
-        if clock:
-            return f" {progress}{reveal}    {clock} "
-        return f" {progress}{reveal} "
+        result.append(" ")
+        return result
+
+    def _get_pacing_indicator(self) -> Text | None:
+        """Get the pacing indicator with color based on time budget.
+
+        Returns colored indicator:
+        - Green (▲ -Xm) if more than 10% ahead
+        - Red (▼ +Xm) if more than 10% behind
+        - None if no time budget or on track
+
+        """
+        if self.time_budget_minutes <= 0 or self.total <= 0:
+            return None
+
+        elapsed_secs = self._get_elapsed_seconds()
+        total_budget_secs = self.time_budget_minutes * 60
+
+        # Expected time for current slide position
+        # (current is 0-indexed, so current+1 gives slides completed)
+        expected_secs = (total_budget_secs / self.total) * (self.current + 1)
+
+        # Calculate difference (positive = behind, negative = ahead)
+        diff_secs = elapsed_secs - expected_secs
+        diff_pct = diff_secs / expected_secs if expected_secs > 0 else 0
+
+        # More than 10% threshold
+        if diff_pct > 0.1:
+            # Behind schedule - need to speed up (red background, white text)
+            diff_mins = int(abs(diff_secs) / 60)
+            diff_remaining = int(abs(diff_secs) % 60)
+            if diff_mins > 0:
+                indicator = f" ▼ +{diff_mins}m{diff_remaining:02d}s "
+            else:
+                indicator = f" ▼ +{diff_remaining}s "
+            return Text(indicator, style="bold white on red")
+        if diff_pct < -0.1:
+            # Ahead of schedule (green background, white text)
+            diff_mins = int(abs(diff_secs) / 60)
+            diff_remaining = int(abs(diff_secs) % 60)
+            if diff_mins > 0:
+                indicator = f" ▲ -{diff_mins}m{diff_remaining:02d}s "
+            else:
+                indicator = f" ▲ -{diff_remaining}s "
+            return Text(indicator, style="bold white on green")
+
+        # On track - no indicator needed
+        return None
 
     def _get_elapsed_seconds(self) -> int:
         """Get total elapsed seconds, accounting for pauses."""
@@ -192,6 +250,10 @@ class StatusBar(Static):
 
     def watch_timer_running(self, value: bool) -> None:
         """React to timer running state changes."""
+        self.refresh()
+
+    def watch_time_budget_minutes(self, value: int) -> None:
+        """React to time budget changes."""
         self.refresh()
 
 

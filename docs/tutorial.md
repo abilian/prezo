@@ -434,8 +434,48 @@ countdown_minutes: 45
 | `show_clock` | true/false | Show current time |
 | `show_elapsed` | true/false | Show elapsed time |
 | `countdown_minutes` | number | Countdown timer (0 = disabled) |
+| `time_budget` | number | Time budget in minutes for pacing indicator |
 | `image_mode` | auto, kitty, sixel, iterm, ascii, none | Image rendering mode |
 | `incremental` | true/false | Reveal list items one at a time |
+
+## Pacing Indicator
+
+When you have a time budget for your presentation, Prezo can show a color-coded indicator to help you stay on track.
+
+### Enabling the Pacing Indicator
+
+Set a time budget via CLI or in your presentation:
+
+```bash
+# Via command line
+prezo presentation.md --time-budget 30   # 30 minutes total
+```
+
+Or in the presentation directives:
+
+```markdown
+<!-- prezo
+time_budget: 30
+-->
+```
+
+### How It Works
+
+The pacing indicator divides your time budget evenly across all slides and compares your actual elapsed time against the expected time:
+
+- **Green (▲ -Xm)** - You're more than 10% ahead of schedule
+- **Red (▼ +Xm)** - You're more than 10% behind schedule (speed up!)
+- **No indicator** - You're on track (within 10% of expected pace)
+
+The indicator appears in the status bar next to the slide progress.
+
+### Example
+
+With a 30-minute budget for 10 slides:
+- Expected time per slide: 3 minutes
+- On slide 3, expected elapsed: 9 minutes
+- If actual elapsed is 12 minutes → shows **▼ +3m00s** in red
+- If actual elapsed is 6 minutes → shows **▲ -3m00s** in green
 
 ## Keyboard Shortcuts
 
@@ -458,7 +498,7 @@ countdown_minutes: 45
 | `t` | Show table of contents |
 | `p` | Toggle presenter notes |
 | `c` | Toggle clock display |
-| `S` | Start/stop timer |
+| `s` | Start/stop timer |
 | `T` | Cycle through themes |
 | `b` | Blackout screen |
 | `w` | Whiteout screen |
@@ -493,6 +533,9 @@ prezo presentation.md --image-mode kitty
 
 # Enable incremental list reveal
 prezo presentation.md -I
+
+# Set time budget for pacing indicator
+prezo presentation.md --time-budget 45
 ```
 
 ### Exporting Presentations

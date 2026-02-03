@@ -9,6 +9,7 @@ Starting with version 2026.1.1, Prezo uses [CalVer](https://calver.org/) version
 ### Added
 - **Version flag** - New `-v/--version` CLI option to display version
 - **Timer start/stop** - New `S` key to pause/resume the elapsed timer (shows ⏸ indicator when paused)
+- **Pacing indicator** - Color-coded indicator showing if you're ahead/behind schedule when a time budget is set (`--time-budget` flag or `time_budget` directive)
 
 ### Fixed
 - **Box layout spacing** - Stacked boxes now have exactly one blank line between them (was two)

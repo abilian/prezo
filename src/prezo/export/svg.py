@@ -25,7 +25,7 @@ _TITLE_TEXT_PATTERN = re.compile(r'<text class="[^"]*-title"[^>]*>[^<]*</text>')
 # Traffic light buttons group
 _TRAFFIC_LIGHTS_PATTERN = re.compile(
     r'<g transform="translate\(26,22\)">\s*'
-    r'<circle[^/]*/>\s*<circle[^/]*/>\s*<circle[^/]*/>\s*</g>'
+    r"<circle[^/]*/>\s*<circle[^/]*/>\s*<circle[^/]*/>\s*</g>"
 )
 # Content group transform (to adjust offset)
 _CONTENT_TRANSFORM_PATTERN = re.compile(

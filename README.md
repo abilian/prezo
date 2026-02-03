@@ -84,7 +84,7 @@ prezo -e pdf presentation.md --theme light --size 100x30 --no-chrome
 | `t` | Table of contents |
 | `p` | Toggle notes panel |
 | `c` | Cycle clock display |
-| `S` | Start/stop timer |
+| `s` | Start/stop timer |
 | `T` | Cycle theme |
 | `b` | Blackout screen |
 | `w` | Whiteout screen |

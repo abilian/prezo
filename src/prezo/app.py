@@ -67,7 +67,7 @@ prezo <presentation.md>
 | **t** | Table of contents |
 | **p** | Toggle notes |
 | **c** | Toggle clock |
-| **S** | Start/stop timer |
+| **s** | Start/stop timer |
 | **b** | Blackout screen |
 | **e** | Edit current slide |
 | **r** | Reload file |
@@ -448,6 +448,7 @@ class PrezoApp(App):
         Binding("t", "show_toc", "TOC", show=True),
         Binding("p", "toggle_notes", "Notes", show=True),
         Binding("c", "toggle_clock", "Clock", show=False),
+        Binding("s", "toggle_timer", "Timer", show=False),
         Binding("S", "toggle_timer", "Timer", show=False),
         Binding("T", "cycle_theme", "Theme", show=False),
         Binding("b", "blackout", "Blackout", show=False),
@@ -472,6 +473,7 @@ class PrezoApp(App):
         watch: bool | None = None,
         config: Config | None = None,
         incremental: bool = False,
+        time_budget: int | None = None,
     ) -> None:
         """Initialize the Prezo application.
 
@@ -480,6 +482,7 @@ class PrezoApp(App):
             watch: Whether to enable file watching for live reload.
             config: Optional config override. Uses global config if None.
             incremental: Whether to display lists incrementally (-I flag).
+            time_budget: Time budget in minutes for pacing indicator.
 
         """
         super().__init__()
@@ -491,6 +494,9 @@ class PrezoApp(App):
 
         # Incremental lists: CLI flag overrides config
         self.incremental_cli = incremental
+
+        # Time budget: CLI flag overrides config/presentation directives
+        self.time_budget_cli = time_budget
 
         # Use config for watch if not explicitly set
         if watch is None:
@@ -709,6 +715,7 @@ class PrezoApp(App):
         show_clock = self.config.timer.show_clock
         show_elapsed = self.config.timer.show_elapsed
         countdown = self.config.timer.countdown_minutes
+        time_budget = self.config.timer.time_budget_minutes
 
         # Override with presentation directives if specified
         if self.presentation:
@@ -719,12 +726,19 @@ class PrezoApp(App):
                 show_elapsed = directives.show_elapsed
             if directives.countdown_minutes is not None:
                 countdown = directives.countdown_minutes
+            if directives.time_budget_minutes is not None:
+                time_budget = directives.time_budget_minutes
+
+        # CLI flag takes highest priority for time budget
+        if self.time_budget_cli is not None:
+            time_budget = self.time_budget_cli
 
         # Apply to status bar
         status_bar.show_clock = show_clock
         status_bar.show_elapsed = show_elapsed
         status_bar.countdown_minutes = countdown
         status_bar.show_countdown = countdown > 0
+        status_bar.time_budget_minutes = time_budget
 
     def _show_welcome(self) -> None:
         """Show welcome message when no presentation is loaded."""
@@ -1195,6 +1209,7 @@ def run_app(
     watch: bool | None = None,
     config: Config | None = None,
     incremental: bool = False,
+    time_budget: int | None = None,
 ) -> None:
     """Run the Prezo application.
 
@@ -1203,9 +1218,14 @@ def run_app(
         watch: Whether to watch for file changes. Uses config default if None.
         config: Optional config override. Uses global config if None.
         incremental: Whether to display lists incrementally (-I flag).
+        time_budget: Time budget in minutes for pacing indicator.
 
     """
     app = PrezoApp(
-        presentation_path, watch=watch, config=config, incremental=incremental
+        presentation_path,
+        watch=watch,
+        config=config,
+        incremental=incremental,
+        time_budget=time_budget,
     )
     app.run()

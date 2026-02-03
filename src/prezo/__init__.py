@@ -181,6 +181,12 @@ def main() -> None:
         action="store_true",
         help="Display lists incrementally, one item at a time (like Pandoc)",
     )
+    parser.add_argument(
+        "--time-budget",
+        metavar="MINUTES",
+        type=int,
+        help="Time budget in minutes for pacing indicator (shows if ahead/behind)",
+    )
 
     args = parser.parse_args()
 
@@ -263,4 +269,5 @@ def main() -> None:
             watch=not args.no_watch,
             config=config,
             incremental=args.incremental,
+            time_budget=args.time_budget,
         )

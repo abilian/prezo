@@ -51,6 +51,7 @@ class PresentationConfig:
     show_clock: bool | None = None
     show_elapsed: bool | None = None
     countdown_minutes: int | None = None
+    time_budget_minutes: int | None = None  # Time budget for pacing indicator
     image_mode: str | None = None
     incremental_lists: bool | None = None
 
@@ -65,6 +66,10 @@ class PresentationConfig:
             result.setdefault("timer", {})["show_elapsed"] = self.show_elapsed
         if self.countdown_minutes is not None:
             result.setdefault("timer", {})["countdown_minutes"] = self.countdown_minutes
+        if self.time_budget_minutes is not None:
+            result.setdefault("timer", {})["time_budget_minutes"] = (
+                self.time_budget_minutes
+            )
         if self.image_mode is not None:
             result.setdefault("images", {})["mode"] = self.image_mode
         if self.incremental_lists is not None:
@@ -239,6 +244,9 @@ def extract_prezo_directives(content: str) -> PresentationConfig:
         elif key in ("countdown_minutes", "countdown", "countdownminutes"):
             with contextlib.suppress(ValueError):
                 config.countdown_minutes = int(value)
+        elif key in ("time_budget", "time_budget_minutes", "timebudget"):
+            with contextlib.suppress(ValueError):
+                config.time_budget_minutes = int(value)
         elif key in ("image_mode", "imagemode", "images"):
             config.image_mode = value
         elif key in ("incremental_lists", "incremental", "incrementallists"):

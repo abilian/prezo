@@ -35,9 +35,11 @@ HELP_CONTENT = """\
 |-----|--------|
 | **p** | Toggle presenter notes |
 | **c** | Cycle clock/timer modes |
+| **s** | Start/stop timer |
 | **T** | Cycle through themes |
 | **b** | Blackout screen |
 | **w** | Whiteout screen |
+| **i** | View image (native quality) |
 
 ## Editing & Files
 
@@ -81,6 +83,8 @@ countdown_minutes: 45
 - `show_clock`: true/false
 - `show_elapsed`: true/false
 - `countdown_minutes`: number
+- `time_budget`: minutes (shows pacing indicator)
+- `incremental`: true/false (reveal list items one at a time)
 
 ## Documentation
 

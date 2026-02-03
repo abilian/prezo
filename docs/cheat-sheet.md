@@ -30,7 +30,7 @@ Quick reference for Prezo - terminal-based Markdown presentations.
 |-----|--------|
 | `T` | Cycle theme |
 | `c` | Toggle clock/timer |
-| `S` | Start/stop timer |
+| `s` | Start/stop timer |
 | `b` | Blackout screen |
 | `w` | Whiteout screen |
 
@@ -55,6 +55,7 @@ prezo presentation.md --theme dracula    # Set theme
 prezo presentation.md --no-watch         # Disable auto-reload
 prezo presentation.md -I                 # Incremental lists
 prezo presentation.md --image-mode kitty # Image mode
+prezo presentation.md --time-budget 30   # Pacing indicator (30 min)
 
 # Export
 prezo presentation.md -e pdf             # Export to PDF
@@ -172,6 +173,7 @@ theme: dracula
 show_clock: true
 show_elapsed: true
 countdown_minutes: 45
+time_budget: 30
 incremental: true
 image_mode: auto
 -->
@@ -201,6 +203,12 @@ incremental = false
 mode = "auto"
 ```
 
+## Pacing Indicator
+
+When `--time-budget` or `time_budget` is set:
+- **▲ -Xm** (green) = ahead of schedule (>10%)
+- **▼ +Xm** (red) = behind schedule (>10%)
+
 ## Tips
 
 - One idea per slide
@@ -209,3 +217,4 @@ mode = "auto"
 - Press `o` to see all slides at once
 - Use `::: box` to highlight key points
 - Add presenter notes with `???`
+- Use `--time-budget` to stay on track

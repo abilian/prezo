@@ -61,6 +61,7 @@ class TimerConfig:
     show_clock: bool = True
     show_elapsed: bool = True
     countdown_minutes: int = 0
+    time_budget_minutes: int = 0  # Total time budget for pacing indicator
 
 
 @dataclass
