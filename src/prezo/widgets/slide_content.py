@@ -2,17 +2,21 @@
 
 from __future__ import annotations
 
-from rich.markdown import Markdown as RichMarkdown
 from textual.widgets import Static
 
-from prezo.layout import has_layout_blocks, parse_layout, render_layout
+from prezo.layout import (
+    has_layout_blocks,
+    parse_layout,
+    render_layout,
+    render_styled_markdown,
+)
 
 
 class SlideContent(Static):
     """Widget that renders slide content with optional layout support.
 
     Handles both plain markdown and Pandoc-style fenced div layouts:
-    - Plain markdown is rendered using Rich's Markdown
+    - Plain markdown is rendered with styled H1/H2 (heavy box, centered)
     - Layout blocks (columns, center) are rendered using the layout module
 
     Inherits from Static to properly handle Rich renderable display.
@@ -42,11 +46,25 @@ class SlideContent(Static):
             classes: CSS classes.
 
         """
-        # Initialize Static with the rendered content
         super().__init__("", name=name, id=id, classes=classes)
         self._raw_content = content
         if content:
             self._update_renderable()
+
+    def _get_primary_color(self) -> str:
+        """Get the primary color from the app's theme."""
+        from prezo.themes import THEMES
+
+        try:
+            if self.is_attached:
+                theme_name = getattr(self.app, "app_theme", None)
+                if theme_name:
+                    theme = THEMES.get(theme_name)
+                    if theme:
+                        return theme.primary
+        except Exception:
+            pass
+        return "#0178d4"  # Default blue
 
     @property
     def raw_content(self) -> str:
@@ -69,13 +87,14 @@ class SlideContent(Static):
             super().update("")
             return
 
+        primary_color = self._get_primary_color()
+
         # Check for layout directives
         if has_layout_blocks(self._raw_content):
             blocks = parse_layout(self._raw_content)
-            renderable = render_layout(blocks)
+            renderable = render_layout(blocks, primary_color=primary_color)
         else:
-            # Plain markdown
-            renderable = RichMarkdown(self._raw_content)
+            # Plain markdown with styled headings
+            renderable = render_styled_markdown(self._raw_content, primary_color)
 
-        # Use Static's update to set the renderable
         super().update(renderable)

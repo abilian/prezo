@@ -27,6 +27,7 @@ from dataclasses import dataclass, field
 from io import StringIO
 from typing import TYPE_CHECKING, Literal
 
+import rich.box
 from rich.cells import cell_len
 from rich.console import Console, ConsoleOptions, Group, RenderResult
 from rich.markdown import Markdown
@@ -37,6 +38,94 @@ from rich.text import Text
 
 if TYPE_CHECKING:
     from rich.console import RenderableType
+
+# -----------------------------------------------------------------------------
+# Styled Markdown Rendering
+# -----------------------------------------------------------------------------
+
+# Patterns for detecting h1/h2 headings
+_H1_PATTERN = re.compile(r"^#\s+(.+)$")
+_H2_PATTERN = re.compile(r"^##\s+(.+)$")
+
+
+def render_styled_markdown(
+    content: str,
+    primary_color: str = "#0178d4",
+) -> RenderableType:
+    """Render markdown with styled headings.
+
+    H1: Centered bold text in a heavy-bordered panel
+    H2: Centered bold text in primary color
+
+    Args:
+        content: Markdown content to render.
+        primary_color: Theme primary color for borders and H2.
+
+    Returns:
+        Rich renderable for the styled content.
+
+    """
+    if not content.strip():
+        return Text("")
+
+    renderables: list[RenderableType] = []
+    lines = content.split("\n")
+    current_block: list[str] = []
+
+    def flush_block() -> None:
+        """Flush accumulated lines as regular markdown."""
+        if current_block:
+            block_text = "\n".join(current_block).strip()
+            if block_text:
+                renderables.append(Markdown(block_text))
+            current_block.clear()
+
+    for line in lines:
+        # Check for H1
+        h1_match = _H1_PATTERN.match(line)
+        if h1_match:
+            flush_block()
+            title = h1_match.group(1).strip()
+            # Add top margin
+            renderables.append(Text(""))
+            # H1: Heavy-bordered panel with centered bold text
+            panel = Panel(
+                Text(title, style="bold", justify="center"),
+                border_style=primary_color,
+                box=rich.box.HEAVY,
+                padding=(0, 2),
+            )
+            renderables.append(panel)
+            # Add bottom margin
+            renderables.append(Text(""))
+            continue
+
+        # Check for H2
+        h2_match = _H2_PATTERN.match(line)
+        if h2_match:
+            flush_block()
+            title = h2_match.group(1).strip()
+            # Add top margin
+            renderables.append(Text(""))
+            # H2: Centered bold text in primary color
+            renderables.append(
+                Text(title, style=f"bold {primary_color}", justify="center")
+            )
+            # Add bottom margin
+            renderables.append(Text(""))
+            continue
+
+        # Regular content
+        current_block.append(line)
+
+    flush_block()
+
+    if len(renderables) == 0:
+        return Text("")
+    if len(renderables) == 1:
+        return renderables[0]
+    return Group(*renderables)
+
 
 # -----------------------------------------------------------------------------
 # Data Types
@@ -586,11 +675,15 @@ class DividerRenderable:
         return Measurement(1, options.max_width)
 
 
-def _render_block(block: LayoutBlock) -> list[RenderableType]:
+def _render_block(
+    block: LayoutBlock,
+    primary_color: str = "#0178d4",
+) -> list[RenderableType]:
     """Render a single block to Rich renderables.
 
     Args:
         block: A LayoutBlock to render.
+        primary_color: Theme primary color for styled headings.
 
     Returns:
         List of Rich renderables for this block.
@@ -604,7 +697,7 @@ def _render_block(block: LayoutBlock) -> list[RenderableType]:
         # Also render any non-column children (plain text between columns)
         for child in block.children:
             if child.type == "plain":
-                result.append(Markdown(child.content))
+                result.append(render_styled_markdown(child.content, primary_color))
         return result
 
     if block.type == "spacer":
@@ -624,17 +717,19 @@ def _render_block(block: LayoutBlock) -> list[RenderableType]:
     if block.type in renderable_map:
         return [renderable_map[block.type](block.content)]
 
-    # Default: plain markdown (for "plain" and standalone "column")
-    return [Markdown(block.content)]
+    # Default: plain markdown with styled headings
+    return [render_styled_markdown(block.content, primary_color)]
 
 
 def render_layout(
     blocks: list[LayoutBlock],
+    primary_color: str = "#0178d4",
 ) -> RenderableType:
     """Render layout blocks to a Rich renderable.
 
     Args:
         blocks: List of LayoutBlocks from parse_layout().
+        primary_color: Theme primary color for styled headings.
 
     Returns:
         Rich renderable representing the layout.
@@ -646,7 +741,7 @@ def render_layout(
         # Add spacing before box blocks (except the first one)
         if block.type == "box" and i > 0:
             renderables.append(Text(""))
-        renderables.extend(_render_block(block))
+        renderables.extend(_render_block(block, primary_color))
 
     if len(renderables) == 1:
         return renderables[0]

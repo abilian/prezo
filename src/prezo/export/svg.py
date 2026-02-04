@@ -6,12 +6,16 @@ import io
 import re
 
 from rich.console import Console
-from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.style import Style
 from rich.text import Text
 
-from prezo.layout import has_layout_blocks, parse_layout, render_layout
+from prezo.layout import (
+    has_layout_blocks,
+    parse_layout,
+    render_layout,
+    render_styled_markdown,
+)
 from prezo.themes import get_theme
 
 # Patterns for stripping window chrome from SVG
@@ -111,12 +115,12 @@ def render_slide_to_svg(
     # Base style for the entire slide (background color)
     base_style = Style(color=theme.text, bgcolor=theme.background)
 
-    # Render the content (with layout support)
+    # Render the content (with layout support and styled headings)
     if has_layout_blocks(content):
         blocks = parse_layout(content)
-        slide_content = render_layout(blocks)
+        slide_content = render_layout(blocks, primary_color=theme.primary)
     else:
-        slide_content = Markdown(content)
+        slide_content = render_styled_markdown(content, primary_color=theme.primary)
 
     # Create a panel with the slide content
     # Panel takes full height minus status bar line
@@ -129,7 +133,7 @@ def render_slide_to_svg(
         title_align="right",
         border_style=Style(color=theme.primary),
         style=Style(color=theme.text, bgcolor=theme.surface),
-        padding=(1, 2),
+        padding=(0, 2),
         expand=True,
         height=panel_height,
     )
