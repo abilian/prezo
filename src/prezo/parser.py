@@ -150,7 +150,7 @@ def split_slides(content: str) -> list[str]:
     """
     parts = re.split(r"\n---\s*\n", content)
     slides = [p for p in parts if p.strip()]
-    return slides if slides else [""]
+    return slides or [""]
 
 
 def extract_notes(content: str) -> tuple[str, str]:

@@ -162,7 +162,7 @@ def _create_block(
         title = quoted_arg or unquoted_arg or ""
         block = LayoutBlock(type="box", content=content, title=title)
     elif block_type == "divider":
-        style = unquoted_arg if unquoted_arg else "single"
+        style = unquoted_arg or "single"
         block = LayoutBlock(type="divider", style=style)
     elif block_type in simple_types:
         block = LayoutBlock(type=block_type, content=content)
@@ -539,7 +539,7 @@ class BoxRenderable:
     ) -> RenderResult:
         """Render content in a bordered panel."""
         content = _render_box_content(self.content)
-        panel = Panel(content, title=self.title if self.title else None)
+        panel = Panel(content, title=self.title or None)
         yield panel
 
     def __rich_measure__(

@@ -11,6 +11,9 @@ dependencies = [
     "textual>=0.89.1",
     "textual-image>=0.8.0",
     "python-frontmatter>=1.1.0",
+    # Export
+    "cairosvg>=2.7.0",
+    "pypdf>=4.0.0",
 ]
 
 [project.scripts]
@@ -25,13 +28,6 @@ dev = [
     # Typechecking
     "ty>=0.0.2",
     "types-markdown>=3.10.0.20251106",
-    # See below
-    "cairosvg>=2.7.0",
-    "pypdf>=4.0.0",
-]
-export = [
-    "cairosvg>=2.7.0",
-    "pypdf>=4.0.0",
 ]
 
 [tool.pytest.ini_options]
