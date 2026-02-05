@@ -553,6 +553,38 @@ class TestMarpImageDirectives:
         assert images[0].layout == "left"
         assert images[1].layout == "inline"
 
+    def test_bg_left_fit(self):
+        """Test left:fit for vertical fitting."""
+        content = "![bg left:fit](image.png)"
+        images = extract_images(content)
+        assert images[0].layout == "left"
+        assert images[0].fit_vertical is True
+        assert images[0].size_percent == 0  # Calculated dynamically
+
+    def test_bg_right_fit(self):
+        """Test right:fit for vertical fitting."""
+        content = "![bg right:fit](image.png)"
+        images = extract_images(content)
+        assert images[0].layout == "right"
+        assert images[0].fit_vertical is True
+        assert images[0].size_percent == 0  # Calculated dynamically
+
+    def test_bg_left_percentage_not_fit(self):
+        """Test that left:40% does not set fit_vertical."""
+        content = "![bg left:40%](image.png)"
+        images = extract_images(content)
+        assert images[0].layout == "left"
+        assert images[0].fit_vertical is False
+        assert images[0].size_percent == 40
+
+    def test_bg_right_default_not_fit(self):
+        """Test that right (default) does not set fit_vertical."""
+        content = "![bg right](image.png)"
+        images = extract_images(content)
+        assert images[0].layout == "right"
+        assert images[0].fit_vertical is False
+        assert images[0].size_percent == 50
+
 
 class TestSlideWithImages:
     """Tests for Slide dataclass with images."""

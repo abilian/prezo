@@ -29,6 +29,7 @@ class ImageRef:
     # MARP-style size directives (in characters for TUI, or percentage)
     width: int | None = None  # Width in characters (None = auto)
     height: int | None = None  # Height in characters (None = auto)
+    fit_vertical: bool = False  # If True, fit to container height (for left/right)
 
 
 @dataclass
@@ -304,6 +305,7 @@ def extract_images(content: str) -> list[ImageRef]:
                 size_percent=directives.size_percent,
                 width=directives.width,
                 height=directives.height,
+                fit_vertical=directives.fit_vertical,
             )
         )
 
@@ -318,6 +320,7 @@ class _ImageDirectives:
     size_percent: int = 50
     width: int | None = None
     height: int | None = None
+    fit_vertical: bool = False
 
 
 def _parse_marp_image_directive(alt_text: str) -> _ImageDirectives:
@@ -325,8 +328,10 @@ def _parse_marp_image_directive(alt_text: str) -> _ImageDirectives:
 
     Supports:
     - ![bg](path) - background
-    - ![bg left](path) - left layout
+    - ![bg left](path) - left layout (50% width)
     - ![bg right:40%](path) - right layout with size
+    - ![bg left:fit](path) - left layout, fit to container height
+    - ![bg right:fit](path) - right layout, fit to container height
     - ![w:50](path) or ![width:50](path) - width in characters
     - ![h:20](path) or ![height:20](path) - height in characters
     - Combined: ![bg left w:40 h:20](path)
@@ -363,12 +368,24 @@ def _parse_marp_image_directive(alt_text: str) -> _ImageDirectives:
         # Default background
         result.layout = "background"
         result.size_percent = 100
-    elif left_match := re.match(r"left(?:\s*:\s*(\d+)%)?", directive):
+    elif left_match := re.match(r"left(?:\s*:\s*(?:(\d+)%|fit))?", directive):
         result.layout = "left"
-        result.size_percent = int(left_match.group(1)) if left_match.group(1) else 50
-    elif right_match := re.match(r"right(?:\s*:\s*(\d+)%)?", directive):
+        if ":fit" in directive:
+            result.fit_vertical = True
+            result.size_percent = 0  # Will be calculated dynamically
+        else:
+            result.size_percent = (
+                int(left_match.group(1)) if left_match.group(1) else 50
+            )
+    elif right_match := re.match(r"right(?:\s*:\s*(?:(\d+)%|fit))?", directive):
         result.layout = "right"
-        result.size_percent = int(right_match.group(1)) if right_match.group(1) else 50
+        if ":fit" in directive:
+            result.fit_vertical = True
+            result.size_percent = 0  # Will be calculated dynamically
+        else:
+            result.size_percent = (
+                int(right_match.group(1)) if right_match.group(1) else 50
+            )
     elif directive.startswith(("fit", "contain")):
         result.layout = "fit"
         result.size_percent = 100

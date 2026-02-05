@@ -803,10 +803,23 @@ class PrezoApp(App):
             resolved_path = resolve_image_path(first_image.path, self.presentation_path)
 
             if resolved_path:
+                # Calculate dimensions for fit_vertical mode
+                img_width = first_image.width
+                img_height = first_image.height
+                container_width_percent = None
+
+                if first_image.fit_vertical and first_image.layout in ("left", "right"):
+                    # Calculate width based on image aspect ratio and container height
+                    calculated_width = self._calculate_fit_width(
+                        resolved_path, image_container
+                    )
+                    if calculated_width:
+                        container_width_percent = calculated_width
+
                 image_widget.set_image(
                     resolved_path,
-                    width=first_image.width,
-                    height=first_image.height,
+                    width=img_width,
+                    height=img_height,
                 )
                 image_container.add_class("visible")
 
@@ -828,10 +841,15 @@ class PrezoApp(App):
                             image_container, before=slide_container
                         )
 
-                # Apply dynamic width if size_percent is specified
-                default_size = 50
-                has_custom_size = first_image.size_percent != default_size
-                if has_custom_size and first_image.layout in ("left", "right"):
+                # Apply dynamic width
+                if container_width_percent is not None:
+                    # fit_vertical mode: use calculated width
+                    image_container.styles.width = f"{container_width_percent}%"
+                elif first_image.size_percent != 50 and first_image.layout in (
+                    "left",
+                    "right",
+                ):
+                    # Custom percentage specified
                     image_container.styles.width = f"{first_image.size_percent}%"
                 else:
                     image_container.styles.width = None  # Reset to CSS default
@@ -887,6 +905,63 @@ class PrezoApp(App):
             notes_content.update(slide.notes)
         else:
             notes_content.update("*No notes for this slide*")
+
+    def _calculate_fit_width(self, image_path: Path, container) -> int | None:
+        """Calculate container width percentage for fit_vertical mode.
+
+        Calculates the width needed for an image to fill the available height
+        while maintaining its aspect ratio.
+
+        Args:
+            image_path: Path to the image file.
+            container: The container widget for height reference.
+
+        Returns:
+            Width as percentage of total width, or None if calculation fails.
+
+        """
+        try:
+            from PIL import Image as PILImage
+        except ImportError:
+            return None
+
+        try:
+            # Get image dimensions
+            with PILImage.open(image_path) as img:
+                img_width, img_height = img.size
+
+            if img_height == 0:
+                return None
+
+            # Get terminal dimensions
+            term_width = self.size.width
+            term_height = self.size.height
+
+            # Account for UI elements (header, footer, status bar, padding)
+            # Approximate available height for content
+            available_height = term_height - 6  # header + footer + status + padding
+
+            # Terminal cells are typically ~2:1 (height:width in pixels)
+            # A cell is roughly twice as tall as it is wide
+            cell_aspect_ratio = 2.0
+
+            # Image aspect ratio (width/height)
+            img_aspect = img_width / img_height
+
+            # Calculate width in cells needed to fill available_height
+            # If image fills available_height rows, each row shows (img_height/available_height) pixels
+            # Width in cells = (img_width / (img_height/available_height)) / cell_aspect_ratio
+            # Simplified: width_cells = available_height * img_aspect / cell_aspect_ratio
+            width_cells = available_height * img_aspect / cell_aspect_ratio
+
+            # Convert to percentage of terminal width
+            width_percent = int((width_cells / term_width) * 100)
+
+            # Clamp to reasonable range (10% to 80%)
+            return max(10, min(80, width_percent))
+
+        except Exception:
+            return None
 
     def watch_current_slide(self, old_value: int, new_value: int) -> None:
         """React to slide changes."""
