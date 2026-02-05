@@ -71,9 +71,7 @@ def _strip_window_chrome(svg: str) -> str:
         clip_id = match.group(3)
         return f'<g transform="translate(0, 0)" clip-path="url(#{clip_id})">'
 
-    svg = _CONTENT_TRANSFORM_PATTERN.sub(adjust_transform, svg)
-
-    return svg
+    return _CONTENT_TRANSFORM_PATTERN.sub(adjust_transform, svg)
 
 
 def render_slide_to_svg(
@@ -118,9 +116,19 @@ def render_slide_to_svg(
     # Render the content (with layout support and styled headings)
     if has_layout_blocks(content):
         blocks = parse_layout(content)
-        slide_content = render_layout(blocks, primary_color=theme.primary)
+        slide_content = render_layout(
+            blocks,
+            primary_color=theme.primary,
+            text_color=theme.text,
+            surface_color=theme.surface,
+        )
     else:
-        slide_content = render_styled_markdown(content, primary_color=theme.primary)
+        slide_content = render_styled_markdown(
+            content,
+            primary_color=theme.primary,
+            text_color=theme.text,
+            surface_color=theme.surface,
+        )
 
     # Create a panel with the slide content
     # Panel takes full height minus status bar line

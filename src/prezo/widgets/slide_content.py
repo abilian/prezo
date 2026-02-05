@@ -51,8 +51,8 @@ class SlideContent(Static):
         if content:
             self._update_renderable()
 
-    def _get_primary_color(self) -> str:
-        """Get the primary color from the app's theme."""
+    def _get_theme_colors(self) -> tuple[str, str, str]:
+        """Get theme colors (primary, text, surface) from the app's theme."""
         from prezo.themes import THEMES
 
         try:
@@ -61,10 +61,11 @@ class SlideContent(Static):
                 if theme_name:
                     theme = THEMES.get(theme_name)
                     if theme:
-                        return theme.primary
+                        return theme.primary, theme.text, theme.surface
         except Exception:
             pass
-        return "#0178d4"  # Default blue
+        # Default dark theme colors
+        return "#0178d4", "#e0e0e0", "#1e1e1e"
 
     @property
     def raw_content(self) -> str:
@@ -87,14 +88,24 @@ class SlideContent(Static):
             super().update("")
             return
 
-        primary_color = self._get_primary_color()
+        primary_color, text_color, surface_color = self._get_theme_colors()
 
         # Check for layout directives
         if has_layout_blocks(self._raw_content):
             blocks = parse_layout(self._raw_content)
-            renderable = render_layout(blocks, primary_color=primary_color)
+            renderable = render_layout(
+                blocks,
+                primary_color=primary_color,
+                text_color=text_color,
+                surface_color=surface_color,
+            )
         else:
             # Plain markdown with styled headings
-            renderable = render_styled_markdown(self._raw_content, primary_color)
+            renderable = render_styled_markdown(
+                self._raw_content,
+                primary_color=primary_color,
+                text_color=text_color,
+                surface_color=surface_color,
+            )
 
         super().update(renderable)

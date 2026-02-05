@@ -187,6 +187,12 @@ def main() -> None:
         type=int,
         help="Time budget in minutes for pacing indicator (shows if ahead/behind)",
     )
+    parser.add_argument(
+        "--resume",
+        "-r",
+        action="store_true",
+        help="Resume from last session (restore slide position, timer, theme)",
+    )
 
     args = parser.parse_args()
 
@@ -270,4 +276,5 @@ def main() -> None:
             config=config,
             incremental=args.incremental,
             time_budget=args.time_budget,
+            resume=args.resume,
         )

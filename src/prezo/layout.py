@@ -47,10 +47,60 @@ if TYPE_CHECKING:
 _H1_PATTERN = re.compile(r"^#\s+(.+)$")
 _H2_PATTERN = re.compile(r"^##\s+(.+)$")
 
+# Patterns for bullet and numbered lists
+_BULLET_LIST_PATTERN = re.compile(r"^(\s*)([-*+])\s+(.*)$")
+_NUMBERED_LIST_PATTERN = re.compile(r"^(\s*)(\d+\.)\s+(.*)$")
+
+
+def _render_text_with_formatting(
+    text: str,
+    base_style: str,
+) -> Text:
+    """Render text with inline formatting like **bold** and *italic*.
+
+    Args:
+        text: Text with possible markdown formatting.
+        base_style: Base style string (e.g., "#e0e0e0 on #1e1e1e").
+
+    Returns:
+        Rich Text object with appropriate styling.
+
+    """
+    result = Text(style=base_style)
+    i = 0
+    while i < len(text):
+        # Check for **bold**
+        if text[i : i + 2] == "**":
+            end = text.find("**", i + 2)
+            if end != -1:
+                result.append(text[i + 2 : end], style=f"bold {base_style}")
+                i = end + 2
+                continue
+        # Check for *italic* (but not **)
+        if text[i] == "*" and (i + 1 >= len(text) or text[i + 1] != "*"):
+            end = text.find("*", i + 1)
+            if end != -1 and (end + 1 >= len(text) or text[end + 1] != "*"):
+                result.append(text[i + 1 : end], style=f"italic {base_style}")
+                i = end + 1
+                continue
+        # Check for `code`
+        if text[i] == "`":
+            end = text.find("`", i + 1)
+            if end != -1:
+                result.append(text[i + 1 : end], style=f"bold cyan {base_style}")
+                i = end + 1
+                continue
+        # Regular character
+        result.append(text[i])
+        i += 1
+    return result
+
 
 def render_styled_markdown(
     content: str,
     primary_color: str = "#0178d4",
+    text_color: str = "#e0e0e0",
+    surface_color: str = "#1e1e1e",
 ) -> RenderableType:
     """Render markdown with styled headings.
 
@@ -60,6 +110,8 @@ def render_styled_markdown(
     Args:
         content: Markdown content to render.
         primary_color: Theme primary color for borders and H2.
+        text_color: Theme text color.
+        surface_color: Theme surface/background color.
 
     Returns:
         Rich renderable for the styled content.
@@ -68,17 +120,56 @@ def render_styled_markdown(
     if not content.strip():
         return Text("")
 
+    # Base style with background color
+    base_style = f"{text_color} on {surface_color}"
+
     renderables: list[RenderableType] = []
     lines = content.split("\n")
     current_block: list[str] = []
+    in_list = False
 
     def flush_block() -> None:
         """Flush accumulated lines as regular markdown."""
+        nonlocal in_list
         if current_block:
             block_text = "\n".join(current_block).strip()
             if block_text:
-                renderables.append(Markdown(block_text))
+                renderables.append(Markdown(block_text, style=base_style))
             current_block.clear()
+        in_list = False
+
+    def end_list() -> None:
+        """End current list block with spacing."""
+        nonlocal in_list
+        if in_list:
+            # Add blank line after list
+            renderables.append(Text("", style=base_style))
+            in_list = False
+
+    def render_list_item(indent: str, marker: str, text: str) -> None:
+        """Render a list item with proper styling."""
+        nonlocal in_list
+
+        # If starting a new list, add spacing before
+        if not in_list:
+            renderables.append(Text("", style=base_style))
+            in_list = True
+
+        # Convert indent to visual spaces (2 spaces per level)
+        indent_level = len(indent) // 2 if indent else 0
+        visual_indent = "  " * indent_level
+
+        # Use bullet character for unordered lists
+        if marker in "-*+":
+            bullet = "•"
+        else:
+            bullet = marker  # Keep numbered marker as-is
+
+        # Create styled text with background
+        item_text = Text(style=base_style)
+        item_text.append(f"{visual_indent}{bullet} ")
+        item_text.append_text(_render_text_with_formatting(text, base_style))
+        renderables.append(item_text)
 
     for line in lines:
         # Check for H1
@@ -87,17 +178,18 @@ def render_styled_markdown(
             flush_block()
             title = h1_match.group(1).strip()
             # Add top margin
-            renderables.append(Text(""))
+            renderables.append(Text("", style=base_style))
             # H1: Heavy-bordered panel with centered bold text
             panel = Panel(
-                Text(title, style="bold", justify="center"),
+                Text(title, style=f"bold {text_color}", justify="center"),
                 border_style=primary_color,
                 box=rich.box.HEAVY,
                 padding=(0, 2),
+                style=base_style,
             )
             renderables.append(panel)
             # Add bottom margin
-            renderables.append(Text(""))
+            renderables.append(Text("", style=base_style))
             continue
 
         # Check for H2
@@ -106,18 +198,56 @@ def render_styled_markdown(
             flush_block()
             title = h2_match.group(1).strip()
             # Add top margin
-            renderables.append(Text(""))
+            renderables.append(Text("", style=base_style))
             # H2: Centered bold text in primary color
             renderables.append(
-                Text(title, style=f"bold {primary_color}", justify="center")
+                Text(
+                    title,
+                    style=f"bold {primary_color} on {surface_color}",
+                    justify="center",
+                )
             )
             # Add bottom margin
-            renderables.append(Text(""))
+            renderables.append(Text("", style=base_style))
             continue
+
+        # Check for bullet list
+        bullet_match = _BULLET_LIST_PATTERN.match(line)
+        if bullet_match:
+            if not in_list:
+                flush_block()  # Flush any pending text before list
+            render_list_item(
+                bullet_match.group(1),
+                bullet_match.group(2),
+                bullet_match.group(3),
+            )
+            continue
+
+        # Check for numbered list
+        numbered_match = _NUMBERED_LIST_PATTERN.match(line)
+        if numbered_match:
+            if not in_list:
+                flush_block()  # Flush any pending text before list
+            render_list_item(
+                numbered_match.group(1),
+                numbered_match.group(2),
+                numbered_match.group(3),
+            )
+            continue
+
+        # If we're in a list and hit an empty line, skip it (don't end list yet)
+        if in_list and not line.strip():
+            continue
+
+        # If we were in a list and hit a non-empty non-list line, end the list
+        if in_list:
+            end_list()
 
         # Regular content
         current_block.append(line)
 
+    # End any open list and flush remaining content
+    end_list()
     flush_block()
 
     if len(renderables) == 0:
@@ -678,12 +808,16 @@ class DividerRenderable:
 def _render_block(
     block: LayoutBlock,
     primary_color: str = "#0178d4",
+    text_color: str = "#e0e0e0",
+    surface_color: str = "#1e1e1e",
 ) -> list[RenderableType]:
     """Render a single block to Rich renderables.
 
     Args:
         block: A LayoutBlock to render.
         primary_color: Theme primary color for styled headings.
+        text_color: Theme text color.
+        surface_color: Theme surface/background color.
 
     Returns:
         List of Rich renderables for this block.
@@ -697,7 +831,11 @@ def _render_block(
         # Also render any non-column children (plain text between columns)
         for child in block.children:
             if child.type == "plain":
-                result.append(render_styled_markdown(child.content, primary_color))
+                result.append(
+                    render_styled_markdown(
+                        child.content, primary_color, text_color, surface_color
+                    )
+                )
         return result
 
     if block.type == "spacer":
@@ -718,30 +856,39 @@ def _render_block(
         return [renderable_map[block.type](block.content)]
 
     # Default: plain markdown with styled headings
-    return [render_styled_markdown(block.content, primary_color)]
+    return [
+        render_styled_markdown(block.content, primary_color, text_color, surface_color)
+    ]
 
 
 def render_layout(
     blocks: list[LayoutBlock],
     primary_color: str = "#0178d4",
+    text_color: str = "#e0e0e0",
+    surface_color: str = "#1e1e1e",
 ) -> RenderableType:
     """Render layout blocks to a Rich renderable.
 
     Args:
         blocks: List of LayoutBlocks from parse_layout().
         primary_color: Theme primary color for styled headings.
+        text_color: Theme text color.
+        surface_color: Theme surface/background color.
 
     Returns:
         Rich renderable representing the layout.
 
     """
+    base_style = f"{text_color} on {surface_color}"
     renderables: list[RenderableType] = []
 
     for i, block in enumerate(blocks):
         # Add spacing before box blocks (except the first one)
         if block.type == "box" and i > 0:
-            renderables.append(Text(""))
-        renderables.extend(_render_block(block, primary_color))
+            renderables.append(Text("", style=base_style))
+        renderables.extend(
+            _render_block(block, primary_color, text_color, surface_color)
+        )
 
     if len(renderables) == 1:
         return renderables[0]

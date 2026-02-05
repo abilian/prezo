@@ -108,6 +108,67 @@ def hello():
 
 Code blocks support syntax highlighting for most languages.
 
+### Heading Styles
+
+Prezo automatically styles headings for visual impact in presentations:
+
+#### H1 - Slide Titles
+
+H1 headings (`# Title`) are rendered with special styling:
+- Displayed in a **heavy-bordered panel** (thick box-drawing characters)
+- Text is **bold and centered**
+- Border color matches the theme's primary color
+- Vertical margin above and below for visual separation
+
+```markdown
+# This is a Slide Title
+```
+
+This makes H1 ideal for slide titles that need to stand out.
+
+#### H2 - Section Headings
+
+H2 headings (`## Subtitle`) are styled as:
+- **Bold and centered** text
+- Colored with the theme's primary color
+- Vertical margin for separation
+
+```markdown
+## This is a Section Heading
+```
+
+Use H2 for subtitles or section headers within a slide.
+
+#### H3 and Below
+
+H3-H6 headings use standard Markdown rendering (bold text, left-aligned). Use these for content hierarchy within your slides.
+
+```markdown
+### Subsection
+#### Detail
+```
+
+#### Example Slide
+
+```markdown
+# Main Presentation Title
+
+## Introduction to the Topic
+
+Here is some content explaining the topic.
+
+### Key Points
+
+- First point
+- Second point
+```
+
+This renders as:
+- "Main Presentation Title" in a heavy-bordered panel
+- "Introduction to the Topic" as centered bold text in theme color
+- "Key Points" as regular bold text
+- Bullet points as normal list items
+
 #### Tables
 
 ```markdown
@@ -128,6 +189,152 @@ Code blocks support syntax highlighting for most languages.
 
 ```markdown
 [Link text](https://example.com)
+```
+
+## Styling Your Presentation
+
+Prezo provides several ways to style your slides for visual impact.
+
+### Themes
+
+Six built-in color themes are available:
+
+| Theme | Description | Primary Color |
+|-------|-------------|---------------|
+| `dark` | Classic dark terminal | Blue |
+| `light` | Clean light background | Blue |
+| `dracula` | Purple elegance | Purple |
+| `solarized-dark` | Easy on the eyes | Cyan |
+| `nord` | Arctic frost | Light blue |
+| `gruvbox` | Retro warmth | Teal |
+
+Set a theme via:
+
+```bash
+# Command line
+prezo slides.md --theme dracula
+```
+
+```markdown
+# Frontmatter
+---
+theme: dracula
+---
+```
+
+```markdown
+# Directive
+<!-- prezo
+theme: dracula
+-->
+```
+
+Press `T` during presentation to cycle themes live.
+
+### Heading Styles
+
+Headings are automatically styled for presentations:
+
+**H1 - Slide Titles** (`# Title`)
+- Displayed in a **heavy-bordered panel** (thick box lines)
+- Bold, centered text
+- Border uses theme's primary color
+- 1-line margin above and below
+
+**H2 - Section Headings** (`## Subtitle`)
+- Bold, centered text
+- Uses theme's primary color
+- 1-line margin above and below
+
+**H3-H6** - Standard markdown rendering (bold, left-aligned)
+
+Example:
+```markdown
+# Main Title
+
+## Section Heading
+
+### Subsection
+```
+
+### Visual Blocks
+
+Use fenced divs to create visual structure:
+
+**Bordered Panels** - Draw attention to key content:
+```markdown
+::: box "Important"
+Key takeaway goes here.
+:::
+```
+
+**Centered Text** - For emphasis or quotes:
+```markdown
+::: center
+**This text is centered and prominent.**
+:::
+```
+
+**Right-Aligned** - For attributions:
+```markdown
+::: right
+— Author Name
+:::
+```
+
+**Horizontal Dividers** - Separate sections:
+```markdown
+::: divider double
+:::
+```
+Styles: `single`, `double`, `thick`, `dashed`
+
+**Vertical Spacing** - Control whitespace:
+```markdown
+::: spacer 2
+:::
+```
+
+### Text Formatting
+
+Standard Markdown formatting:
+
+| Syntax | Result |
+|--------|--------|
+| `**bold**` | **bold** |
+| `*italic*` | *italic* |
+| `~~strike~~` | ~~strikethrough~~ |
+| `` `code` `` | `inline code` |
+
+### Code Blocks
+
+Syntax highlighting for 100+ languages:
+
+````markdown
+```python
+def greet(name: str) -> str:
+    return f"Hello, {name}!"
+```
+````
+
+### Combining Styles
+
+Nest blocks for complex layouts:
+
+```markdown
+::: columns
+::: column
+::: box "Pro"
+- Fast startup
+- Low memory
+:::
+:::
+::: column
+::: box "Con"
+- Learning curve
+:::
+:::
+:::
 ```
 
 ## Layout Blocks

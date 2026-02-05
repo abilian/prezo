@@ -11,6 +11,7 @@ import sys
 import tempfile
 import termios
 import tty
+from datetime import datetime, timezone
 from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
@@ -25,7 +26,7 @@ from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.reactive import reactive
 from textual.widgets import Footer, Header, Markdown, Static
 
-from .config import Config, get_config, get_state, save_state
+from .config import Config, SessionState, get_config, get_state, save_state
 from .images.ascii import HalfBlockRenderer
 from .images.chafa import chafa_available, render_with_chafa
 from .images.processor import resolve_image_path
@@ -346,7 +347,6 @@ class PrezoApp(App):
     #slide-outer {
         width: 1fr;
         height: 100%;
-        background: $surface;
     }
 
     /* Horizontal container for left/right layouts */
@@ -402,8 +402,7 @@ class PrezoApp(App):
     #notes-panel {
         width: 30%;
         height: 100%;
-        background: $surface-darken-1;
-        border-left: solid $primary;
+        border-left: solid white;
         padding: 1 2;
         display: none;
     }
@@ -414,7 +413,6 @@ class PrezoApp(App):
 
     #notes-title {
         text-style: bold;
-        color: $primary;
         margin-bottom: 1;
     }
 
@@ -425,8 +423,6 @@ class PrezoApp(App):
     #status-bar {
         width: 100%;
         height: 1;
-        background: $primary;
-        color: $text;
         text-align: center;
     }
     """
@@ -474,6 +470,7 @@ class PrezoApp(App):
         config: Config | None = None,
         incremental: bool = False,
         time_budget: int | None = None,
+        resume: bool = False,
     ) -> None:
         """Initialize the Prezo application.
 
@@ -483,6 +480,7 @@ class PrezoApp(App):
             config: Optional config override. Uses global config if None.
             incremental: Whether to display lists incrementally (-I flag).
             time_budget: Time budget in minutes for pacing indicator.
+            resume: Whether to resume from last session state.
 
         """
         super().__init__()
@@ -497,6 +495,9 @@ class PrezoApp(App):
 
         # Time budget: CLI flag overrides config/presentation directives
         self.time_budget_cli = time_budget
+
+        # Resume from last session
+        self.resume_session = resume
 
         # Use config for watch if not explicitly set
         if watch is None:
@@ -536,6 +537,9 @@ class PrezoApp(App):
 
     def _initial_load(self) -> None:
         """Load presentation after UI is ready."""
+        # Apply theme now that widgets are ready
+        self._apply_theme(self.app_theme)
+
         if self.presentation_path:
             self.load_presentation(self.presentation_path)
             if self.watch_enabled:
@@ -589,11 +593,18 @@ class PrezoApp(App):
         """Load a presentation from a file."""
         self.presentation_path = Path(path)
         self.presentation = parse_presentation(path)
-
-        # Restore last position or start at 0
         abs_path = str(self.presentation_path.absolute())
-        last_pos = self.state.get_position(abs_path)
-        target_slide = last_pos if last_pos < self.presentation.total_slides else 0
+
+        # Check for session state to restore
+        session = self.state.get_session(abs_path) if self.resume_session else None
+
+        if session:
+            # Restore from session
+            target_slide = min(session.slide, self.presentation.total_slides - 1)
+        else:
+            # Restore last position or start at 0
+            last_pos = self.state.get_position(abs_path)
+            target_slide = last_pos if last_pos < self.presentation.total_slides else 0
 
         # Set the slide - the watcher will initialize reveal state
         if self.current_slide == target_slide:
@@ -611,17 +622,30 @@ class PrezoApp(App):
         if self.presentation_path.exists():
             self._file_mtime = self.presentation_path.stat().st_mtime
 
-        # Apply presentation directives on top of config
-        self._apply_presentation_directives()
+        # Apply presentation directives on top of config (but not theme if resuming)
+        self._apply_presentation_directives(skip_theme=session is not None)
+
+        # Restore theme from session AFTER directives (session has priority)
+        if session and session.theme:
+            self.app_theme = session.theme
 
         # Add to recent files and save state
         self.state.add_recent_file(abs_path)
         save_state(self.state)
 
-        # Reset timer when loading new presentation
+        # Setup timer
         status_bar = self.query_one("#status-bar", StatusBar)
         self._apply_timer_config(status_bar)
-        status_bar.reset_timer()
+
+        if session:
+            # Restore timer state from session
+            status_bar._elapsed_when_paused = session.elapsed_seconds
+            status_bar.timer_running = session.timer_running
+            if session.timer_running:
+                status_bar._start_time = datetime.now(tz=timezone.utc)
+            self.notify("Session restored", timeout=2)
+        else:
+            status_bar.reset_timer()
 
     def _is_incremental_enabled(self, slide_index: int | None = None) -> bool:
         """Check if incremental mode is enabled for a slide.
@@ -698,15 +722,20 @@ class PrezoApp(App):
         else:
             self.reveal_index = -1  # Incremental disabled, show all
 
-    def _apply_presentation_directives(self) -> None:
-        """Apply presentation-specific directives on top of config."""
+    def _apply_presentation_directives(self, *, skip_theme: bool = False) -> None:
+        """Apply presentation-specific directives on top of config.
+
+        Args:
+            skip_theme: If True, don't apply theme directive (used when resuming session).
+
+        """
         if not self.presentation:
             return
 
         directives = self.presentation.directives
 
-        # Apply theme from presentation if specified
-        if directives.theme:
+        # Apply theme from presentation if specified (unless skipped for session resume)
+        if directives.theme and not skip_theme:
             self.app_theme = directives.theme
 
     def _apply_timer_config(self, status_bar: StatusBar) -> None:
@@ -1015,34 +1044,58 @@ class PrezoApp(App):
         self.notify(f"Theme: {theme_name}", timeout=1)
 
     def _apply_theme(self, theme_name: str) -> None:
-        """Apply theme colors to all widgets."""
+        """Apply theme colors to all widgets by re-rendering everything."""
+        from textual.color import Color
+
         theme = get_theme(theme_name)
 
-        # Use Textual's dark mode as a base
-        self.dark = theme_name != "light"
-
-        # Apply theme colors via CSS variables
-        self.set_class(theme_name in ("light",), "light-theme")
+        # Parse colors once
+        bg_color = Color.parse(theme.background)
+        surface_color = Color.parse(theme.surface)
+        primary_color = Color.parse(theme.primary)
+        text_color = Color.parse(theme.text)
 
         # Update the app's design with theme colors
-        self.styles.background = theme.background
+        self.styles.background = bg_color
 
-        # Apply to slide container
-        slide_container = self.query_one("#slide-container", VerticalScroll)
-        slide_container.styles.background = theme.surface
+        # Apply to screen
+        self.screen.styles.background = bg_color
+
+        # Apply to all containers with parsed Color objects
+        for widget_id in [
+            "#content-area",
+            "#main-container",
+            "#slide-outer",
+            "#slide-horizontal",
+            "#slide-container",
+            "#image-container",
+        ]:
+            widget = self.query_one(widget_id)
+            widget.styles.background = surface_color
 
         # Apply to status bar
         status_bar = self.query_one("#status-bar", StatusBar)
-        status_bar.styles.background = theme.primary
-        status_bar.styles.color = theme.text
+        status_bar.styles.background = primary_color
+        status_bar.styles.color = text_color
 
         # Apply to notes panel
         notes_panel = self.query_one("#notes-panel")
-        notes_panel.styles.background = theme.surface
-        notes_panel.styles.border_left = ("solid", theme.primary)
+        notes_panel.styles.background = surface_color
+        notes_panel.styles.border_left = ("solid", primary_color)
 
         notes_title = self.query_one("#notes-title", Static)
-        notes_title.styles.color = theme.primary
+        notes_title.styles.color = primary_color
+
+        # Apply to slide content widget
+        slide_content = self.query_one("#slide-content", SlideContent)
+        slide_content.styles.background = surface_color
+        slide_content.styles.color = text_color
+
+        # Force complete re-render of slide content
+        self._update_display()
+
+        # Force complete repaint
+        self.refresh(repaint=True, layout=True)
 
     def action_blackout(self) -> None:
         """Show blackout screen."""
@@ -1058,6 +1111,32 @@ class PrezoApp(App):
             self._reload_presentation()
         else:
             self.notify("No presentation file to reload", severity="warning")
+
+    def _save_session(self) -> None:
+        """Save current session state for later resume."""
+        if not self.presentation_path:
+            return
+
+        abs_path = str(self.presentation_path.absolute())
+        status_bar = self.query_one("#status-bar", StatusBar)
+
+        # Get current elapsed time
+        elapsed = status_bar._get_elapsed_seconds()
+
+        session = SessionState(
+            slide=self.current_slide,
+            elapsed_seconds=float(elapsed),
+            timer_running=status_bar.timer_running,
+            theme=self.app_theme,  # Always save current theme
+        )
+
+        self.state.save_session(abs_path, session)
+        save_state(self.state)
+
+    def action_quit(self) -> None:
+        """Save session and quit the application."""
+        self._save_session()
+        self.exit()
 
     def action_view_image(self) -> None:
         """View current slide's image in native quality (suspend mode)."""
@@ -1210,6 +1289,7 @@ def run_app(
     config: Config | None = None,
     incremental: bool = False,
     time_budget: int | None = None,
+    resume: bool = False,
 ) -> None:
     """Run the Prezo application.
 
@@ -1219,6 +1299,7 @@ def run_app(
         config: Optional config override. Uses global config if None.
         incremental: Whether to display lists incrementally (-I flag).
         time_budget: Time budget in minutes for pacing indicator.
+        resume: Whether to resume from last session state.
 
     """
     app = PrezoApp(
@@ -1227,5 +1308,6 @@ def run_app(
         config=config,
         incremental=incremental,
         time_budget=time_budget,
+        resume=resume,
     )
     app.run()

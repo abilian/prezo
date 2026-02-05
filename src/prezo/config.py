@@ -136,11 +136,22 @@ class Config:
 
 
 @dataclass
+class SessionState:
+    """Session state for a single presentation."""
+
+    slide: int = 0
+    elapsed_seconds: float = 0.0
+    timer_running: bool = True
+    theme: str = ""  # Empty means use config default
+
+
+@dataclass
 class AppState:
     """Persistent application state."""
 
     recent_files: list[str] = field(default_factory=list)
     last_positions: dict[str, int] = field(default_factory=dict)
+    sessions: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def add_recent_file(self, path: str, max_files: int = 20) -> None:
         """Add a file to recent files list."""
@@ -159,6 +170,31 @@ class AppState:
     def get_position(self, path: str) -> int:
         """Get last position for a file."""
         return self.last_positions.get(path, 0)
+
+    def save_session(self, path: str, session: SessionState) -> None:
+        """Save session state for a presentation."""
+        self.sessions[path] = {
+            "slide": session.slide,
+            "elapsed_seconds": session.elapsed_seconds,
+            "timer_running": session.timer_running,
+            "theme": session.theme,
+        }
+
+    def get_session(self, path: str) -> SessionState | None:
+        """Get session state for a presentation."""
+        data = self.sessions.get(path)
+        if data:
+            return SessionState(
+                slide=data.get("slide", 0),
+                elapsed_seconds=data.get("elapsed_seconds", 0.0),
+                timer_running=data.get("timer_running", True),
+                theme=data.get("theme", ""),
+            )
+        return None
+
+    def clear_session(self, path: str) -> None:
+        """Clear session state for a presentation."""
+        self.sessions.pop(path, None)
 
 
 def ensure_config_dir() -> None:
@@ -212,6 +248,7 @@ def load_state() -> AppState:
             return AppState(
                 recent_files=data.get("recent_files", []),
                 last_positions=data.get("last_positions", {}),
+                sessions=data.get("sessions", {}),
             )
         except Exception:
             pass
@@ -224,6 +261,7 @@ def save_state(state: AppState) -> None:
     data = {
         "recent_files": state.recent_files,
         "last_positions": state.last_positions,
+        "sessions": state.sessions,
     }
     STATE_FILE.write_text(json.dumps(data, indent=2))
 
