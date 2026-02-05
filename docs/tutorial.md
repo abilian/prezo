@@ -585,8 +585,8 @@ Content appears on the left side.
 ```
 
 Available positions:
-- `![bg left](image.png)` - Image on left, content on right
-- `![bg right](image.png)` - Image on right, content on left
+- `![bg left](image.png)` - Image on left (50%), content on right
+- `![bg right](image.png)` - Image on right (50%), content on left
 - `![bg](image.png)` - Background image
 - `![bg fit](image.png)` - Fit image to container
 - `![bg contain](image.png)` - Same as fit
@@ -599,6 +599,15 @@ Control the image size as a percentage:
 ![bg right:40%](images/small.png)   # Image takes 40% width
 ![bg left:60%](images/large.png)    # Image takes 60% width
 ```
+
+Or use `fit` to automatically size the image to fill the vertical space while maintaining aspect ratio:
+
+```markdown
+![bg right:fit](images/tall.png)    # Fits vertically, width calculated from aspect ratio
+![bg left:fit](images/diagram.png)  # Same, on the left side
+```
+
+This is useful for tall images that should fill the slide height without distortion.
 
 Or specify exact dimensions in characters:
 
@@ -743,6 +752,9 @@ prezo presentation.md -I
 
 # Set time budget for pacing indicator
 prezo presentation.md --time-budget 45
+
+# Resume from last session (restores slide position, timer, theme)
+prezo presentation.md --resume
 ```
 
 ### Exporting Presentations

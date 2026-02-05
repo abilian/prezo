@@ -4,7 +4,22 @@ All notable changes to Prezo are documented in this file.
 
 Starting with version 2026.1.1, Prezo uses [CalVer](https://calver.org/) versioning (YYYY.M.patch).
 
-## [2026.1.4] - 2026-02-03
+## [2026.2.2] - 2026-02-05
+
+### Added
+- **Session resume** - New `--resume` / `-r` flag to restore session state (slide position, timer elapsed time, timer running state, theme) when relaunching a presentation
+- **Image vertical fit** - New `![bg right:fit]` and `![bg left:fit]` syntax to size images to fill vertical space while maintaining aspect ratio
+
+### Fixed
+- **Heading styles** - H1 (heavy border panel) and H2 (centered bold) now render consistently across all slides
+- **Theme cycling** - Backgrounds now update correctly when cycling through themes with `T`
+- **Bullet list spacing** - One blank line before and after each bullet list block (was inconsistent)
+- **Numbered list spacing** - Empty lines between list items in source no longer create extra spacing
+
+### Documentation
+- Updated cheat-sheet and tutorial with `--resume` and `right:fit`/`left:fit` syntax
+
+## [2026.2.1] - 2026-02-03
 
 ### Added
 - **Version flag** - New `-v/--version` CLI option to display version

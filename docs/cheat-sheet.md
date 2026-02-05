@@ -56,6 +56,7 @@ prezo presentation.md --no-watch         # Disable auto-reload
 prezo presentation.md -I                 # Incremental lists
 prezo presentation.md --image-mode kitty # Image mode
 prezo presentation.md --time-budget 30   # Pacing indicator (30 min)
+prezo presentation.md --resume           # Resume last session
 
 # Export
 prezo presentation.md -e pdf             # Export to PDF
@@ -158,9 +159,11 @@ Or with HTML comment:
 ```markdown
 ![](image.png)              # Inline image
 ![bg](image.png)            # Background
-![bg left](image.png)       # Image left, content right
-![bg right](image.png)      # Image right, content left
+![bg left](image.png)       # Image left (50%), content right
+![bg right](image.png)      # Image right (50%), content left
 ![bg right:40%](image.png)  # Image takes 40% width
+![bg right:fit](image.png)  # Image fits vertically, width auto
+![bg left:fit](image.png)   # Image fits vertically, width auto
 ![w:60](image.png)          # Width in characters
 ![h:20](image.png)          # Height in lines
 ```

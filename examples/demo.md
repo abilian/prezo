@@ -159,14 +159,14 @@ The image appears on the **left** (50% width by default).
 
 ---
 
-# Image Layouts: Right
+# Image Layouts: Right Fit
 
-![bg right](images/concept-map.png)
+![bg right:fit](images/concept-map.png)
 
 Place images on the right side:
 
 ```markdown
-![bg right](images/concept-map.png)
+![bg right:fit](images/concept-map.png)
 ```
 
 Text content flows on the **left**.
