@@ -16,6 +16,16 @@ import frontmatter
 
 
 @dataclass
+class LinkRef:
+    """Reference to a link in a slide."""
+
+    text: str  # Link text
+    url: str  # URL or path
+    start: int  # Start position in content
+    end: int  # End position in content
+
+
+@dataclass
 class ImageRef:
     """Reference to an image in a slide."""
 
@@ -41,6 +51,7 @@ class Slide:
     raw_content: str = ""  # Original content for editing
     notes: str = ""
     images: list[ImageRef] = field(default_factory=list)
+    links: list[LinkRef] = field(default_factory=list)
     incremental: bool | None = None  # Per-slide override for incremental lists
 
 
@@ -312,6 +323,40 @@ def extract_images(content: str) -> list[ImageRef]:
     return images
 
 
+def extract_links(content: str) -> list[LinkRef]:
+    """Extract markdown links from content.
+
+    Extracts standard markdown links [text](url) but NOT images ![alt](path).
+
+    Args:
+        content: Slide content to search.
+
+    Returns:
+        List of LinkRef objects for each link found.
+
+    """
+    links = []
+
+    # Match markdown links: [text](url) but not images ![alt](url)
+    # Use negative lookbehind to exclude images
+    pattern = r"(?<!!)\[([^\]]+)\]\(([^)]+)\)"
+
+    for match in re.finditer(pattern, content):
+        text = match.group(1)
+        url = match.group(2)
+
+        links.append(
+            LinkRef(
+                text=text,
+                url=url,
+                start=match.start(),
+                end=match.end(),
+            )
+        )
+
+    return links
+
+
 @dataclass
 class _ImageDirectives:
     """Parsed MARP image directives."""
@@ -397,25 +442,34 @@ def _parse_marp_image_directive(alt_text: str) -> _ImageDirectives:
     return result
 
 
-def clean_marp_directives(content: str, *, keep_divs: bool = False) -> str:
+def clean_marp_directives(
+    content: str, *, keep_divs: bool = False, keep_images: bool = False
+) -> str:
     """Remove MARP-specific directives that don't render in TUI.
 
     Cleans up:
     - MARP HTML comments (<!-- _class: ... -->, <!-- _header: ... -->, etc.)
     - MARP image directives (![bg ...])
+    - All markdown images (unless keep_images=True)
     - Empty HTML divs with only styling
     - All HTML divs (unless keep_divs=True for HTML export)
 
     Args:
         content: Slide content to clean.
         keep_divs: If True, preserve structural divs (for HTML export).
+        keep_images: If True, preserve inline images (for export where images
+            are rendered differently).
 
     """
     # Remove MARP directive comments
     content = re.sub(r"<!--\s*_\w+:.*?-->\s*\n?", "", content)
 
-    # Remove MARP background image syntax (keep regular images)
+    # Remove MARP background image syntax (always removed - displayed separately)
     content = re.sub(r"!\[bg[^\]]*\]\([^)]+\)\s*\n?", "", content)
+
+    # Remove inline images (displayed via ImageDisplay widget in TUI)
+    if not keep_images:
+        content = re.sub(r"!\[[^\]]*\]\([^)]+\)\s*\n?", "", content)
 
     # Remove empty divs with only style attributes
     content = re.sub(r'<div[^>]*style="[^"]*"[^>]*>\s*</div>\s*\n?', "", content)
@@ -471,6 +525,8 @@ def _parse_content(text: str, source_path: Path | None) -> Presentation:
         slide_content, notes = extract_notes(raw_slide)
         # Extract images BEFORE cleaning (clean_marp_directives removes bg images)
         images = extract_images(slide_content)
+        # Extract links from content
+        links = extract_links(slide_content)
         # Extract per-slide incremental setting
         incremental = extract_slide_incremental(slide_content)
         cleaned_content = clean_marp_directives(slide_content).strip()
@@ -480,6 +536,7 @@ def _parse_content(text: str, source_path: Path | None) -> Presentation:
             raw_content=raw_slide,
             notes=notes.strip(),
             images=images,
+            links=links,
             incremental=incremental,
         )
         presentation.slides.append(slide)

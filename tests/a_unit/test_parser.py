@@ -130,9 +130,17 @@ class TestCleanMarpDirectives:
         assert "# Title" in cleaned
         assert "Content" in cleaned
 
-    def test_keeps_regular_images(self):
+    def test_removes_inline_images_by_default(self):
+        """Inline images are removed by default (displayed via ImageDisplay)."""
         content = "# Title\n\n![Regular image](photo.jpg)\n\nContent"
         cleaned = clean_marp_directives(content)
+        assert "![Regular image]" not in cleaned
+        assert "photo.jpg" not in cleaned
+
+    def test_keeps_images_when_requested(self):
+        """Images are kept when keep_images=True (for HTML export)."""
+        content = "# Title\n\n![Regular image](photo.jpg)\n\nContent"
+        cleaned = clean_marp_directives(content, keep_images=True)
         assert "![Regular image]" in cleaned
 
     def test_removes_empty_divs(self):

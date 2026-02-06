@@ -29,7 +29,12 @@ from typing import TYPE_CHECKING, Literal
 
 import rich.box
 from rich.cells import cell_len
-from rich.console import Console, ConsoleOptions, Group, RenderResult
+from rich.console import (
+    Console,
+    ConsoleOptions,
+    Group,
+    RenderResult,
+)
 from rich.markdown import Markdown
 from rich.measure import Measurement
 from rich.panel import Panel
@@ -47,16 +52,90 @@ if TYPE_CHECKING:
 _H1_PATTERN = re.compile(r"^#\s+(.+)$")
 _H2_PATTERN = re.compile(r"^##\s+(.+)$")
 
+
+class _HangingIndentText:
+    """A renderable that displays text with hanging indentation.
+
+    First line has a prefix (like "• "), continuation lines are indented
+    to align with the text after the prefix.
+    """
+
+    def __init__(self, prefix: str, text: str, base_style: str) -> None:
+        self.prefix = prefix
+        self.text = text
+        self.base_style = base_style
+
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> RenderResult:
+        """Render text with hanging indentation."""
+        max_width = options.max_width
+        prefix_width = cell_len(self.prefix)
+
+        # Calculate available width for text
+        text_width = max_width - prefix_width
+        if text_width < 10:
+            text_width = max_width  # Fallback if too narrow
+
+        # Wrap the plain text first, then apply formatting to each line
+        words = self.text.split()
+        lines: list[str] = []
+        current_line: list[str] = []
+        current_width = 0
+
+        for word in words:
+            # Calculate width of word (without markdown formatting)
+            clean_word = re.sub(r"\*\*(.+?)\*\*", r"\1", word)
+            clean_word = re.sub(r"\*(.+?)\*", r"\1", clean_word)
+            clean_word = re.sub(r"`(.+?)`", r"\1", clean_word)
+            word_width = cell_len(clean_word)
+
+            space_width = 1 if current_line else 0
+
+            if current_width + space_width + word_width > text_width and current_line:
+                # Start a new line
+                lines.append(" ".join(current_line))
+                current_line = []
+                current_width = 0
+                space_width = 0
+
+            current_line.append(word)
+            current_width += word_width + space_width
+
+        if current_line:
+            lines.append(" ".join(current_line))
+
+        # Build output with hanging indent
+        indent = " " * prefix_width
+        for i, line_text in enumerate(lines):
+            result = Text(style=self.base_style)
+            if i == 0:
+                result.append(self.prefix)
+            else:
+                result.append(indent)
+            result.append_text(_render_text_with_formatting(line_text, self.base_style))
+            yield result
+
+    def __rich_measure__(
+        self, console: Console, options: ConsoleOptions
+    ) -> Measurement:
+        """Return the measurement of this renderable."""
+        return Measurement(len(self.prefix) + 1, options.max_width)
+
+
 # Patterns for bullet and numbered lists
 _BULLET_LIST_PATTERN = re.compile(r"^(\s*)([-*+])\s+(.*)$")
 _NUMBERED_LIST_PATTERN = re.compile(r"^(\s*)(\d+\.)\s+(.*)$")
+
+
+_LINK_PATTERN = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 
 
 def _render_text_with_formatting(
     text: str,
     base_style: str,
 ) -> Text:
-    """Render text with inline formatting like **bold** and *italic*.
+    """Render text with inline formatting like **bold**, *italic*, and [links](url).
 
     Args:
         text: Text with possible markdown formatting.
@@ -69,6 +148,16 @@ def _render_text_with_formatting(
     result = Text(style=base_style)
     i = 0
     while i < len(text):
+        # Check for markdown links [text](url)
+        if text[i] == "[":
+            match = _LINK_PATTERN.match(text, i)
+            if match:
+                link_text = match.group(1)
+                link_url = match.group(2)
+                # Use Rich's link style for OSC 8 clickable links
+                result.append(link_text, style=f"underline cyan link {link_url}")
+                i = match.end()
+                continue
         # Check for **bold**
         if text[i : i + 2] == "**":
             end = text.find("**", i + 2)
@@ -147,7 +236,7 @@ def render_styled_markdown(
             in_list = False
 
     def render_list_item(indent: str, marker: str, text: str) -> None:
-        """Render a list item with proper styling."""
+        """Render a list item with proper styling and hanging indent."""
         nonlocal in_list
 
         # If starting a new list, add spacing before
@@ -165,11 +254,9 @@ def render_styled_markdown(
         else:
             bullet = marker  # Keep numbered marker as-is
 
-        # Create styled text with background
-        item_text = Text(style=base_style)
-        item_text.append(f"{visual_indent}{bullet} ")
-        item_text.append_text(_render_text_with_formatting(text, base_style))
-        renderables.append(item_text)
+        # Create a hanging indent renderable
+        prefix = f"{visual_indent}{bullet} "
+        renderables.append(_HangingIndentText(prefix, text, base_style))
 
     for line in lines:
         # Check for H1

@@ -35,11 +35,13 @@ class ImageDisplay(Static):
         height: auto;
         min-height: 10;
         padding: 0;
+        align: center middle;
     }
 
     ImageDisplay > Image {
-        width: 100%;
+        width: auto;
         height: auto;
+        max-width: 100%;
     }
     """
 

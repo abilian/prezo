@@ -9,6 +9,8 @@ Starting with version 2026.1.1, Prezo uses [CalVer](https://calver.org/) version
 ### Added
 - **Session resume** - New `--resume` / `-r` flag to restore session state (slide position, timer elapsed time, timer running state, theme) when relaunching a presentation
 - **Image vertical fit** - New `![bg right:fit]` and `![bg left:fit]` syntax to size images to fill vertical space while maintaining aspect ratio
+- **Custom themes** - Define custom color themes in `~/.config/prezo/config.toml` using `[themes.name]` sections
+- **Custom CSS** - Load custom Textual CSS from `~/.config/prezo/custom.tcss`, config-specified path, or local `./prezo.tcss`
 
 ### Fixed
 - **Heading styles** - H1 (heavy border panel) and H2 (centered bold) now render consistently across all slides

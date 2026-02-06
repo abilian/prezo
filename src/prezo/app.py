@@ -40,7 +40,7 @@ from .screens import (
     TableOfContentsScreen,
 )
 from .terminal import ImageCapability, detect_image_capability
-from .themes import get_next_theme, get_theme
+from .themes import get_next_theme, get_theme, register_custom_themes
 from .widgets import ImageDisplay, SlideContent, StatusBar
 
 WELCOME_MESSAGE = """\
@@ -389,9 +389,28 @@ class PrezoApp(App):
         width: 50%;
     }
 
-    /* Layout: image inline (above text) */
-    #image-container.layout-inline {
+    /* Layout: image below text (for inline images) */
+    #image-container.layout-below {
         width: 100%;
+        height: 1fr;
+        content-align: center middle;
+    }
+
+    /* Vertical layout mode for inline images */
+    #slide-horizontal.vertical-layout {
+        layout: vertical;
+    }
+
+    /* In vertical layout, text takes only needed height */
+    #slide-horizontal.vertical-layout #slide-container {
+        height: auto;
+        padding-bottom: 0;
+    }
+
+    /* Adjust padding for image when below text */
+    #image-container.layout-below {
+        padding-top: 0;
+        padding-bottom: 1;
     }
 
     #slide-image {
@@ -453,12 +472,15 @@ class PrezoApp(App):
         Binding("r", "reload", "Reload", show=False),
         Binding("question_mark", "show_help", "Help", show=True),
         Binding("i", "view_image", "Image", show=False),
+        Binding("tab", "enter_link_mode", "Links", show=False, priority=True),
     ]
 
     current_slide: reactive[int] = reactive(0)
     notes_visible: reactive[bool] = reactive(False)
     app_theme: reactive[str] = reactive("dark")
     reveal_index: reactive[int] = reactive(-1)  # -1 = show all, 0+ = show up to index
+    link_mode: reactive[bool] = reactive(False)  # True when navigating links
+    current_link: reactive[int] = reactive(-1)  # Current link index (-1 = none)
 
     TITLE = "Prezo"
 
@@ -486,6 +508,12 @@ class PrezoApp(App):
         super().__init__()
         self.config = config or get_config()
         self.state = get_state()
+
+        # Register custom themes from config
+        register_custom_themes(self.config)
+
+        # Load custom CSS if specified
+        self._custom_css_paths = self._find_custom_css_paths(presentation_path)
 
         self.presentation_path = Path(presentation_path) if presentation_path else None
         self.presentation: Presentation | None = None
@@ -530,10 +558,65 @@ class PrezoApp(App):
 
     def on_mount(self) -> None:
         """Load presentation when app mounts."""
+        # Load custom CSS files
+        self._load_custom_css()
+
         # Set theme from config (must be done here, not in __init__, to avoid
         # triggering the watcher before the app has screens)
         self.app_theme = self.config.display.theme
         self.call_after_refresh(self._initial_load)
+
+    def _find_custom_css_paths(
+        self, presentation_path: str | Path | None
+    ) -> list[Path]:
+        """Find custom CSS files to load.
+
+        Searches for CSS files in order of priority (highest last):
+        1. Global config CSS (~/.config/prezo/custom.tcss)
+        2. Config-specified CSS (display.custom_css)
+        3. Local project CSS (./prezo.tcss, next to presentation)
+
+        Args:
+            presentation_path: Path to the presentation file.
+
+        Returns:
+            List of CSS paths to load, in priority order.
+
+        """
+        paths = []
+        from .config import CONFIG_DIR
+
+        # Global custom CSS
+        global_css = CONFIG_DIR / "custom.tcss"
+        if global_css.exists():
+            paths.append(global_css)
+
+        # Config-specified CSS
+        if self.config.display.custom_css:
+            config_css = Path(self.config.display.custom_css).expanduser()
+            if config_css.exists() and config_css not in paths:
+                paths.append(config_css)
+
+        # Local project CSS (next to presentation)
+        if presentation_path:
+            pres_path = Path(presentation_path)
+            local_css = pres_path.parent / "prezo.tcss"
+            if local_css.exists() and local_css not in paths:
+                paths.append(local_css)
+
+        return paths
+
+    def _load_custom_css(self) -> None:
+        """Load custom CSS files into the app's stylesheet."""
+        for css_path in self._custom_css_paths:
+            try:
+                css_content = css_path.read_text()
+                self.stylesheet.add_source(
+                    css_content, path=css_path, is_defaults=False
+                )
+            except Exception:
+                # Silently skip invalid CSS files
+                pass
 
     def _initial_load(self) -> None:
         """Load presentation after UI is ready."""
@@ -793,8 +876,9 @@ class PrezoApp(App):
 
         # Reset layout classes
         image_container.remove_class(
-            "visible", "layout-left", "layout-right", "layout-inline"
+            "visible", "layout-left", "layout-right", "layout-below"
         )
+        horizontal_container.remove_class("vertical-layout")
 
         # Handle images - render using colored half-block characters
         if slide.images:
@@ -836,9 +920,12 @@ class PrezoApp(App):
                             image_container, after=slide_container
                         )
                     case "inline" | "background" | "fit":
-                        image_container.add_class("layout-inline")
+                        # For inline images: vertical layout
+                        # Title at top, image below centered
+                        image_container.add_class("layout-below")
+                        horizontal_container.add_class("vertical-layout")
                         horizontal_container.move_child(
-                            image_container, before=slide_container
+                            image_container, after=slide_container
                         )
 
                 # Apply dynamic width
@@ -965,6 +1052,9 @@ class PrezoApp(App):
 
     def watch_current_slide(self, old_value: int, new_value: int) -> None:
         """React to slide changes."""
+        # Exit link mode when changing slides
+        if self.link_mode:
+            self._exit_link_mode()
         # Determine direction and initialize reveal state appropriately
         going_back = new_value < old_value
         self._init_reveal_for_slide(new_value, show_all=going_back)
@@ -1355,6 +1445,137 @@ class PrezoApp(App):
         finally:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
+
+    # -------------------------------------------------------------------------
+    # Link Navigation
+    # -------------------------------------------------------------------------
+
+    def _get_current_slide_links(self) -> list:
+        """Get links from the current slide."""
+        if not self.presentation or not self.presentation.slides:
+            return []
+        slide = self.presentation.slides[self.current_slide]
+        return slide.links
+
+    def action_enter_link_mode(self) -> None:
+        """Enter link navigation mode (L)."""
+        links = self._get_current_slide_links()
+        if not links:
+            self.notify("No links on this slide", timeout=2)
+            return
+
+        if self.link_mode:
+            # Already in link mode - exit
+            self._exit_link_mode()
+        else:
+            # Enter link mode, select first link
+            self.link_mode = True
+            self.current_link = 0
+            self._update_link_indicator()
+
+    def on_click(self, event) -> None:
+        """Handle clicks, including on links."""
+        # Check if clicked on a link (Rich style with link attribute)
+        if event.style and event.style.link:
+            url = event.style.link
+            self._open_link(url)
+            event.stop()
+
+    def on_key(self, event) -> None:
+        """Handle key presses, especially in link mode."""
+        if not self.link_mode:
+            return  # Let normal bindings handle it
+
+        links = self._get_current_slide_links()
+        if not links:
+            return
+
+        key = event.key
+
+        if key in ("j", "down", "right", "tab"):
+            # Next link
+            self.current_link = (self.current_link + 1) % len(links)
+            self._update_link_indicator()
+            event.prevent_default()
+            event.stop()
+        elif key in ("k", "up", "left", "shift+tab"):
+            # Previous link
+            self.current_link = (self.current_link - 1) % len(links)
+            self._update_link_indicator()
+            event.prevent_default()
+            event.stop()
+        elif key in ("enter", "o"):
+            # Open link
+            link = links[self.current_link]
+            self._open_link(link.url)
+            self._exit_link_mode()
+            event.prevent_default()
+            event.stop()
+        elif key in ("escape", "q", "l"):
+            # Exit link mode
+            self._exit_link_mode()
+            event.prevent_default()
+            event.stop()
+
+    def _exit_link_mode(self) -> None:
+        """Exit link mode and clear indicator."""
+        self.link_mode = False
+        self.current_link = -1
+        self._update_link_indicator()
+
+    def _update_link_indicator(self) -> None:
+        """Update status bar with current link info."""
+        status = self.query_one("#status-bar", StatusBar)
+        links = self._get_current_slide_links()
+
+        if self.link_mode and links and self.current_link >= 0:
+            link = links[self.current_link]
+            # Truncate text if too long
+            text = link.text[:40] + "..." if len(link.text) > 40 else link.text
+            url = link.url[:30] + "..." if len(link.url) > 30 else link.url
+            status.link_info = (
+                f'Link {self.current_link + 1}/{len(links)}: "{text}" → {url}'
+            )
+        else:
+            status.link_info = ""
+
+    def _open_link(self, url: str) -> None:
+        """Open a link with the system default application."""
+        # Check if it's a web URL or local file
+        is_local_file = not url.startswith(("http://", "https://", "mailto:"))
+
+        if url.startswith("file://"):
+            # Strip file:// prefix
+            resolved_path = Path(url[7:])
+            is_local_file = True
+        elif is_local_file:
+            # Resolve relative path using same logic as images
+            resolved_path = resolve_image_path(url, self.presentation_path)
+            if resolved_path is None:
+                self.notify(f"File not found: {url}", severity="error")
+                return
+
+        # Open with system default
+        try:
+            if sys.platform == "darwin":
+                if is_local_file:
+                    subprocess.run(["open", str(resolved_path)], check=True)
+                else:
+                    subprocess.run(["open", url], check=True)
+            elif sys.platform == "win32":
+                if is_local_file:
+                    os.startfile(str(resolved_path))  # type: ignore[attr-defined]
+                else:
+                    os.startfile(url)  # type: ignore[attr-defined]
+            elif is_local_file:
+                subprocess.run(["xdg-open", str(resolved_path)], check=True)
+            else:
+                subprocess.run(["xdg-open", url], check=True)
+
+            display_url = str(resolved_path) if is_local_file else url
+            self.notify(f"Opening: {display_url}", timeout=2)
+        except Exception as e:
+            self.notify(f"Failed to open link: {e}", severity="error")
 
 
 def run_app(

@@ -105,3 +105,44 @@ Starting with 2026.1.1, Prezo switched to CalVer versioning.
 **Other**
 - [x] Test pyramid reorganization (a_unit, b_integration, c_e2e)
 - [x] Emoji font support in PDF export
+
+### 2026.1.3
+
+**PDF Export Improvements**
+- [x] Chrome PDF backend (best quality)
+- [x] PDF backend selection (`--pdf-backend` flag)
+- [x] Backend auto-detection: Chrome > Inkscape > CairoSVG
+- [x] Export module refactored into package structure
+
+### 2026.1.4
+
+**Presenter Tools**
+- [x] Timer start/stop (`S` key with ⏸ indicator)
+- [x] Pacing indicator (ahead/behind schedule with `--time-budget`)
+- [x] Version flag (`-v/--version`)
+
+**Layout Fixes**
+- [x] Box layout spacing improvements
+- [x] `--no-chrome` export fixed
+
+### 2026.2.1
+
+**Session Management**
+- [x] Session resume (`--resume` / `-r` flag)
+- [x] Save/restore: slide position, timer state, theme
+- [x] State stored in `~/.config/prezo/state.json`
+
+**Image Enhancements**
+- [x] Vertical fit for images (`![bg right:fit]`, `![bg left:fit]`)
+- [x] Automatic width calculation from aspect ratio
+
+**Rendering Fixes**
+- [x] H1/H2 heading styles consistent across all slides
+- [x] Theme cycling properly updates all backgrounds
+- [x] Bullet/numbered list spacing improved
+
+### 2026.2.2
+
+**Theming & Customization**
+- [x] Custom themes in TOML (`[themes.name]` sections in config)
+- [x] Custom CSS loading (global, config-specified, and local `prezo.tcss`)

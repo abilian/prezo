@@ -231,6 +231,64 @@ theme: dracula
 
 Press `T` during presentation to cycle themes live.
 
+### Custom Themes
+
+Define your own themes in `~/.config/prezo/config.toml`:
+
+```toml
+[themes.corporate]
+primary = "#0066cc"        # Headers, links, borders
+secondary = "#6f42c1"      # Accents
+background = "#f8f9fa"     # Slide background
+surface = "#e9ecef"        # Panels, boxes
+text = "#212529"           # Main text
+text_muted = "#6c757d"     # Secondary text
+success = "#28a745"
+warning = "#ffc107"
+error = "#dc3545"
+```
+
+Then use it like any built-in theme:
+
+```bash
+prezo slides.md --theme corporate
+```
+
+Or in frontmatter:
+
+```markdown
+---
+theme: corporate
+---
+```
+
+Missing colors are inherited from the `dark` theme.
+
+### Custom CSS (Power Users)
+
+For advanced customization, create Textual CSS files:
+
+1. **Global CSS** - `~/.config/prezo/custom.tcss` (always loaded)
+2. **Config CSS** - Set `display.custom_css` in config
+3. **Local CSS** - `./prezo.tcss` next to your presentation (highest priority)
+
+Example custom CSS:
+
+```css
+/* Make headers larger */
+#slide-content .heading {
+    text-style: bold;
+}
+
+/* Custom status bar styling */
+#status-bar {
+    background: $surface;
+    color: $text-muted;
+}
+```
+
+See [Textual CSS documentation](https://textual.textualize.io/css/) for available properties.
+
 ### Heading Styles
 
 Headings are automatically styled for presentations:

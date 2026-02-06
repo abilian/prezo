@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .config import Config, CustomTheme
 
 
 @dataclass
@@ -22,7 +26,7 @@ class Theme:
 
 
 # Built-in themes
-THEMES: dict[str, Theme] = {
+_BUILTIN_THEMES: dict[str, Theme] = {
     "dark": Theme(
         name="dark",
         primary="#0178d4",
@@ -97,7 +101,48 @@ THEMES: dict[str, Theme] = {
     ),
 }
 
-THEME_ORDER = ["dark", "light", "dracula", "solarized-dark", "nord", "gruvbox"]
+_BUILTIN_THEME_ORDER = ["dark", "light", "dracula", "solarized-dark", "nord", "gruvbox"]
+
+# Mutable theme registry (builtins + custom themes)
+THEMES: dict[str, Theme] = dict(_BUILTIN_THEMES)
+THEME_ORDER: list[str] = list(_BUILTIN_THEME_ORDER)
+
+
+def register_custom_themes(config: Config) -> None:
+    """Register custom themes from configuration.
+
+    Custom themes are added to the theme registry and cycle order.
+    They can override builtin themes or define entirely new ones.
+
+    Args:
+        config: Configuration containing custom_themes dict.
+
+    """
+    for name, custom_theme in config.custom_themes.items():
+        theme = _custom_theme_to_theme(name, custom_theme)
+        THEMES[name] = theme
+        if name not in THEME_ORDER:
+            THEME_ORDER.append(name)
+
+
+def _custom_theme_to_theme(name: str, custom: CustomTheme) -> Theme:
+    """Convert a CustomTheme from config to a Theme object.
+
+    Missing colors are inherited from the 'dark' theme.
+    """
+    base = _BUILTIN_THEMES["dark"]
+    return Theme(
+        name=name,
+        primary=custom.primary or base.primary,
+        secondary=custom.secondary or base.secondary,
+        background=custom.background or base.background,
+        surface=custom.surface or base.surface,
+        text=custom.text or base.text,
+        text_muted=custom.text_muted or base.text_muted,
+        success=custom.success or base.success,
+        warning=custom.warning or base.warning,
+        error=custom.error or base.error,
+    )
 
 
 def get_theme(name: str) -> Theme:

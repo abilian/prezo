@@ -25,6 +25,7 @@ DEFAULT_CONFIG_TOML = """\
 [display]
 theme = "dark"                    # dark, light, dracula, solarized-dark, nord, gruvbox
 # syntax_theme = "monokai"        # Code block highlighting (future)
+# custom_css = "~/.config/prezo/custom.tcss"  # Path to custom Textual CSS
 
 [timer]
 show_clock = true
@@ -43,6 +44,18 @@ chrome = true
 [images]
 mode = "auto"                     # auto, kitty, sixel, iterm, ascii, none
 ascii_width = 60
+
+# Custom theme example (uncomment to use):
+# [themes.corporate]
+# primary = "#0066cc"             # Headers, links
+# secondary = "#6f42c1"           # Accents
+# background = "#f8f9fa"          # Slide background
+# surface = "#e9ecef"             # Panels, boxes
+# text = "#212529"                # Main text
+# text_muted = "#6c757d"          # Secondary text
+# success = "#28a745"
+# warning = "#ffc107"
+# error = "#dc3545"
 """
 
 
@@ -52,6 +65,7 @@ class DisplayConfig:
 
     theme: str = "dark"
     syntax_theme: str = "monokai"
+    custom_css: str = ""  # Path to custom Textual CSS file
 
 
 @dataclass
@@ -91,6 +105,21 @@ class ImageConfig:
 
 
 @dataclass
+class CustomTheme:
+    """Custom theme definition."""
+
+    primary: str = ""
+    secondary: str = ""
+    background: str = ""
+    surface: str = ""
+    text: str = ""
+    text_muted: str = ""
+    success: str = ""
+    warning: str = ""
+    error: str = ""
+
+
+@dataclass
 class Config:
     """Prezo configuration."""
 
@@ -99,6 +128,7 @@ class Config:
     behavior: BehaviorConfig = field(default_factory=BehaviorConfig)
     export: ExportConfig = field(default_factory=ExportConfig)
     images: ImageConfig = field(default_factory=ImageConfig)
+    custom_themes: dict[str, CustomTheme] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Config:
@@ -133,6 +163,11 @@ class Config:
             for key, value in data["images"].items():
                 if hasattr(self.images, key):
                     setattr(self.images, key, value)
+        # Parse custom themes from [themes.name] sections
+        if "themes" in data:
+            for theme_name, theme_data in data["themes"].items():
+                if isinstance(theme_data, dict):
+                    self.custom_themes[theme_name] = CustomTheme(**theme_data)
 
 
 @dataclass

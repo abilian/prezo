@@ -64,6 +64,8 @@ class StatusBar(Static):
     timer_running: reactive[bool] = reactive(True)
     # Time budget for pacing indicator (0 = disabled)
     time_budget_minutes: reactive[int] = reactive(0)
+    # Link navigation info
+    link_info: reactive[str] = reactive("")
 
     def __init__(self, **kwargs) -> None:
         """Initialize the status bar."""
@@ -84,6 +86,13 @@ class StatusBar(Static):
     def render(self) -> Text:
         """Render the status bar content."""
         result = Text()
+
+        # If in link mode, show link info prominently
+        if self.link_info:
+            result.append(" ")
+            result.append(self.link_info, style="bold cyan")
+            result.append("  [Tab/j/k: nav, Enter: open, Esc: exit]", style="dim")
+            return result
 
         # Progress part
         bar = format_progress_bar(self.current, self.total, width=20)
@@ -254,6 +263,10 @@ class StatusBar(Static):
 
     def watch_time_budget_minutes(self, value: int) -> None:
         """React to time budget changes."""
+        self.refresh()
+
+    def watch_link_info(self, value: str) -> None:
+        """React to link info changes."""
         self.refresh()
 
 

@@ -263,7 +263,9 @@ def export_to_html(
     for i, slide in enumerate(presentation.slides):
         # Use raw_content and clean with keep_divs=True to preserve column layouts
         slide_content, _ = extract_notes(slide.raw_content)
-        cleaned_content = clean_marp_directives(slide_content, keep_divs=True)
+        cleaned_content = clean_marp_directives(
+            slide_content, keep_divs=True, keep_images=True
+        )
         content_html = render_slide_to_html(cleaned_content)
 
         # Handle notes
