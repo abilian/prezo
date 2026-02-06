@@ -4,6 +4,17 @@ All notable changes to Prezo are documented in this file.
 
 Starting with version 2026.1.1, Prezo uses [CalVer](https://calver.org/) versioning (YYYY.M.patch).
 
+## [2026.2.3] - 2026-02-06
+
+### Added
+- **Clickable links** - Click on markdown links to open them (URLs open in browser, local files in default app)
+- **Link navigation mode** - Press `Tab` to enter link mode, `j`/`k` to navigate between links, `Enter` to open, `Escape` to exit
+- **Hanging indent for lists** - Continuation lines of bullet points now align with text after the bullet, not with the bullet itself
+
+### Fixed
+- **Inline images** - Images without `bg` directive now display properly below the title (centered, taking available space)
+- **Link path resolution** - Relative paths in links resolve relative to the presentation file (consistent with image paths)
+
 ## [2026.2.2] - 2026-02-05
 
 ### Added
