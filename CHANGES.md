@@ -11,6 +11,9 @@ Starting with version 2026.1.1, Prezo uses [CalVer](https://calver.org/) version
 - **Link navigation mode** - Press `Tab` to enter link mode, `j`/`k` to navigate between links, `Enter` to open, `Escape` to exit
 - **Hanging indent for lists** - Continuation lines of bullet points now align with text after the bullet, not with the bullet itself
 
+### Changed
+- **Self-closing spacers/dividers** - `::: spacer` and `::: divider` no longer require a closing `:::` tag
+
 ### Fixed
 - **Inline images** - Images without `bg` directive now display properly below the title (centered, taking available space)
 - **Link path resolution** - Relative paths in links resolve relative to the presentation file (consistent with image paths)

@@ -737,7 +737,7 @@ wheels = [
 
 [[package]]
 name = "prezo"
-version = "2026.2.2"
+version = "2026.2.3"
 source = { editable = "." }
 dependencies = [
     { name = "cairosvg" },

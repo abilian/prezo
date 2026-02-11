@@ -376,6 +376,9 @@ OPEN_PATTERN = re.compile(r'^:::\s*(\w+)(?:\s+"([^"]+)"|\s+(\S+))?\s*$')
 # Pattern for closing fenced div: :::
 CLOSE_PATTERN = re.compile(r"^:::\s*$")
 
+# Block types that don't require content (self-closing)
+SELF_CLOSING_TYPES = {"spacer", "divider"}
+
 
 def parse_layout(content: str) -> list[LayoutBlock]:
     """Parse markdown content into layout blocks.
@@ -403,6 +406,13 @@ def parse_layout(content: str) -> list[LayoutBlock]:
             # Group 2 is quoted string, Group 3 is unquoted arg
             quoted_arg = match.group(2)  # For "title"
             unquoted_arg = match.group(3)  # For width or style
+
+            # Self-closing blocks (spacer, divider) don't need content or closing :::
+            if block_type in SELF_CLOSING_TYPES:
+                block = _create_block(block_type, "", quoted_arg, unquoted_arg)
+                blocks.append(block)
+                i += 1
+                continue
 
             # Find matching close and nested content
             block, end_idx = _parse_fenced_block(

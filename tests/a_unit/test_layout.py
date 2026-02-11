@@ -445,11 +445,10 @@ Right-aligned text
 
 
 class TestParseSpacerBlock:
-    """Tests for ::: spacer block parsing."""
+    """Tests for ::: spacer block parsing (self-closing, no ::: needed)."""
 
     def test_simple_spacer(self):
-        content = """::: spacer
-:::"""
+        content = """::: spacer"""
         blocks = parse_layout(content)
 
         assert len(blocks) == 1
@@ -458,8 +457,7 @@ class TestParseSpacerBlock:
         assert blocks[0].width_percent == 1
 
     def test_spacer_with_count(self):
-        content = """::: spacer 3
-:::"""
+        content = """::: spacer 3"""
         blocks = parse_layout(content)
 
         assert len(blocks) == 1
@@ -467,8 +465,7 @@ class TestParseSpacerBlock:
         assert blocks[0].width_percent == 3
 
     def test_spacer_with_large_count(self):
-        content = """::: spacer 10
-:::"""
+        content = """::: spacer 10"""
         blocks = parse_layout(content)
 
         assert len(blocks) == 1
@@ -529,11 +526,10 @@ Content here
 
 
 class TestParseDividerBlock:
-    """Tests for ::: divider block parsing."""
+    """Tests for ::: divider block parsing (self-closing, no ::: needed)."""
 
     def test_simple_divider(self):
-        content = """::: divider
-:::"""
+        content = """::: divider"""
         blocks = parse_layout(content)
 
         assert len(blocks) == 1
@@ -541,32 +537,28 @@ class TestParseDividerBlock:
         assert blocks[0].style == "single"
 
     def test_divider_single(self):
-        content = """::: divider single
-:::"""
+        content = """::: divider single"""
         blocks = parse_layout(content)
 
         assert len(blocks) == 1
         assert blocks[0].style == "single"
 
     def test_divider_double(self):
-        content = """::: divider double
-:::"""
+        content = """::: divider double"""
         blocks = parse_layout(content)
 
         assert len(blocks) == 1
         assert blocks[0].style == "double"
 
     def test_divider_thick(self):
-        content = """::: divider thick
-:::"""
+        content = """::: divider thick"""
         blocks = parse_layout(content)
 
         assert len(blocks) == 1
         assert blocks[0].style == "thick"
 
     def test_divider_dashed(self):
-        content = """::: divider dashed
-:::"""
+        content = """::: divider dashed"""
         blocks = parse_layout(content)
 
         assert len(blocks) == 1
@@ -686,7 +678,6 @@ Right
 :::
 
 ::: divider
-:::
 
 More content"""
         blocks = parse_layout(content)
@@ -705,7 +696,6 @@ More content"""
 :::
 
 ::: spacer 2
-:::
 
 ::: box "Benefits"
 - Benefit 1
@@ -816,7 +806,6 @@ Other content
                 content="""Header
 
 ::: divider
-:::
 
 Footer""",
             ),
@@ -839,7 +828,6 @@ Content 1
 :::
 
 ::: spacer
-:::
 
 ::: box "Box 2"
 Content 2
