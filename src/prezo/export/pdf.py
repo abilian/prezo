@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from prezo.parser import parse_presentation
 
@@ -20,6 +21,9 @@ from .common import (
     print_font_warnings,
 )
 from .svg import render_slide_to_svg
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def _find_chrome() -> str | None:
@@ -260,7 +264,7 @@ def _merge_pdfs(pdf_pages: list[Path], output: Path) -> None:
 def _combine_svgs_to_pdf_with_converter(
     svg_files: list[Path],
     output: Path,
-    converter: callable,
+    converter: Callable[[Path, Path], bool],
     converter_name: str,
 ) -> Path:
     """Combine SVGs to PDF using a specified converter function."""

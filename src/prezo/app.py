@@ -621,7 +621,9 @@ class PrezoApp(App):
             try:
                 css_content = css_path.read_text()
                 self.stylesheet.add_source(
-                    css_content, path=css_path, is_defaults=False
+                    css_content,
+                    read_from=(str(css_path), str(css_path)),
+                    is_default_css=False,
                 )
             except Exception:
                 # Silently skip invalid CSS files
@@ -1311,7 +1313,7 @@ class PrezoApp(App):
         self.state.save_session(abs_path, session)
         save_state(self.state)
 
-    def action_quit(self) -> None:
+    async def action_quit(self) -> None:
         """Save session and quit the application."""
         self._save_session()
         self.exit()
@@ -1554,15 +1556,12 @@ class PrezoApp(App):
 
     def _open_link(self, url: str) -> None:
         """Open a link with the system default application."""
-        # Check if it's a web URL or local file
-        is_local_file = not url.startswith(("http://", "https://", "mailto:"))
+        # Determine if it's a local file and resolve the path
+        resolved_path: Path | None = None
 
         if url.startswith("file://"):
-            # Strip file:// prefix
             resolved_path = Path(url[7:])
-            is_local_file = True
-        elif is_local_file:
-            # Resolve relative path using same logic as images
+        elif not url.startswith(("http://", "https://", "mailto:")):
             resolved_path = resolve_image_path(url, self.presentation_path)
             if resolved_path is None:
                 self.notify(f"File not found: {url}", severity="error")
@@ -1570,25 +1569,34 @@ class PrezoApp(App):
 
         # Open with system default
         try:
-            if sys.platform == "darwin":
-                if is_local_file:
-                    subprocess.run(["open", str(resolved_path)], check=True)
-                else:
-                    subprocess.run(["open", url], check=True)
-            elif sys.platform == "win32":
-                if is_local_file:
-                    os.startfile(str(resolved_path))  # type: ignore[attr-defined]
-                else:
-                    os.startfile(url)  # type: ignore[attr-defined]
-            elif is_local_file:
-                subprocess.run(["xdg-open", str(resolved_path)], check=True)
+            if resolved_path is not None:
+                self._open_local_file(resolved_path)
+                display_url = str(resolved_path)
             else:
-                subprocess.run(["xdg-open", url], check=True)
+                self._open_url(url)
+                display_url = url
 
-            display_url = str(resolved_path) if is_local_file else url
             self.notify(f"Opening: {display_url}", timeout=2)
         except Exception as e:
             self.notify(f"Failed to open link: {e}", severity="error")
+
+    def _open_local_file(self, path: Path) -> None:
+        """Open a local file with the system default application."""
+        if sys.platform == "darwin":
+            subprocess.run(["open", str(path)], check=True)
+        elif sys.platform == "win32":
+            os.startfile(str(path))
+        else:
+            subprocess.run(["xdg-open", str(path)], check=True)
+
+    def _open_url(self, url: str) -> None:
+        """Open a URL with the system default browser."""
+        if sys.platform == "darwin":
+            subprocess.run(["open", url], check=True)
+        elif sys.platform == "win32":
+            os.startfile(url)
+        else:
+            subprocess.run(["xdg-open", url], check=True)
 
 
 def run_app(

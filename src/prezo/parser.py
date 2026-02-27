@@ -5,9 +5,12 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import frontmatter
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # -----------------------------------------------------------------------------
 # Data Types (Nouns)
@@ -224,7 +227,7 @@ def _parse_int_or_none(value: str) -> int | None:
 
 
 # Mapping of directive key aliases to (config_attr, parser_func)
-_DIRECTIVE_HANDLERS: dict[str, tuple[str, callable]] = {
+_DIRECTIVE_HANDLERS: dict[str, tuple[str, Callable[[str], Any]]] = {
     "theme": ("theme", str),
     "show_clock": ("show_clock", _parse_bool),
     "showclock": ("show_clock", _parse_bool),
