@@ -4,6 +4,16 @@ All notable changes to Prezo are documented in this file.
 
 Starting with version 2026.1.1, Prezo uses [CalVer](https://calver.org/) versioning (YYYY.M.patch).
 
+## [2026.2.4] - 2026-02-27
+
+### Changed
+- **Code quality improvements** - Refactored complex functions
+- **Type annotations** - Fixed type hints for compatibility with mypy, pyrefly & ty
+
+### Fixed
+- **Textual API compatibility** - Updated `stylesheet.add_source()` call to use correct parameter names
+- **Async action_quit** - Fixed method signature to match Textual's async parent class
+
 ## [2026.2.3] - 2026-02-06
 
 ### Added
