@@ -17,16 +17,26 @@ from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
 from textual.app import App, ComposeResult
-
-if TYPE_CHECKING:
-    from textual.timer import Timer
 from textual.binding import Binding, BindingType
+from textual.color import Color
 from textual.command import Hit, Hits, Provider
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.reactive import reactive
 from textual.widgets import Footer, Header, Markdown, Static
 
-from .config import Config, SessionState, get_config, get_state, save_state
+if TYPE_CHECKING:
+    from textual.timer import Timer
+
+# Optional PIL for image dimension calculations
+try:
+    from PIL import Image as PILImage
+
+    HAS_PIL = True
+except ImportError:
+    PILImage = None  # type: ignore[assignment, misc]
+    HAS_PIL = False
+
+from .config import CONFIG_DIR, Config, SessionState, get_config, get_state, save_state
 from .images.ascii import HalfBlockRenderer
 from .images.chafa import chafa_available, render_with_chafa
 from .images.processor import resolve_image_path
@@ -584,7 +594,6 @@ class PrezoApp(App):
 
         """
         paths = []
-        from .config import CONFIG_DIR
 
         # Global custom CSS
         global_css = CONFIG_DIR / "custom.tcss"
@@ -869,79 +878,9 @@ class PrezoApp(App):
             return
 
         slide = self.presentation.slides[self.current_slide]
-        image_widget = self.query_one("#slide-image", ImageDisplay)
-        image_container = self.query_one("#image-container")
-        slide_container = self.query_one("#slide-container")
-        horizontal_container = self.query_one("#slide-horizontal", Horizontal)
 
-        # Reset layout classes
-        image_container.remove_class(
-            "visible", "layout-left", "layout-right", "layout-below"
-        )
-        horizontal_container.remove_class("vertical-layout")
-
-        # Handle images - render using colored half-block characters
-        if slide.images:
-            # Use first image (most common case)
-            first_image = slide.images[0]
-            resolved_path = resolve_image_path(first_image.path, self.presentation_path)
-
-            if resolved_path:
-                # Calculate dimensions for fit_vertical mode
-                img_width = first_image.width
-                img_height = first_image.height
-                container_width_percent = None
-
-                if first_image.fit_vertical and first_image.layout in ("left", "right"):
-                    # Calculate width based on image aspect ratio and container height
-                    calculated_width = self._calculate_fit_width(
-                        resolved_path, image_container
-                    )
-                    if calculated_width:
-                        container_width_percent = calculated_width
-
-                image_widget.set_image(
-                    resolved_path,
-                    width=img_width,
-                    height=img_height,
-                )
-                image_container.add_class("visible")
-
-                # Apply layout based on MARP directive
-                match first_image.layout:
-                    case "left":
-                        image_container.add_class("layout-left")
-                        horizontal_container.move_child(
-                            image_container, before=slide_container
-                        )
-                    case "right":
-                        image_container.add_class("layout-right")
-                        horizontal_container.move_child(
-                            image_container, after=slide_container
-                        )
-                    case "inline" | "background" | "fit":
-                        # For inline images: vertical layout
-                        # Title at top, image below centered
-                        image_container.add_class("layout-below")
-                        horizontal_container.add_class("vertical-layout")
-                        horizontal_container.move_child(
-                            image_container, after=slide_container
-                        )
-
-                # Apply dynamic width
-                if container_width_percent is not None:
-                    # fit_vertical mode: use calculated width
-                    image_container.styles.width = f"{container_width_percent}%"
-                elif first_image.size_percent != 50 and first_image.layout in (
-                    "left",
-                    "right",
-                ):
-                    # Custom percentage specified
-                    image_container.styles.width = f"{first_image.size_percent}%"
-                else:
-                    image_container.styles.width = None  # Reset to CSS default
-            else:
-                image_widget.clear()
+        # Handle image display
+        self._update_image_display(slide)
 
         # Use cleaned content (bg images already removed by parser)
         content = slide.content.strip()
@@ -957,6 +896,84 @@ class PrezoApp(App):
 
         self._update_progress_bar()
         self._update_notes()
+
+    def _update_image_display(self, slide) -> None:
+        """Update the image display for a slide."""
+        image_widget = self.query_one("#slide-image", ImageDisplay)
+        image_container = self.query_one("#image-container")
+        slide_container = self.query_one("#slide-container")
+        horizontal_container = self.query_one("#slide-horizontal", Horizontal)
+
+        # Reset layout classes
+        image_container.remove_class(
+            "visible", "layout-left", "layout-right", "layout-below"
+        )
+        horizontal_container.remove_class("vertical-layout")
+
+        if not slide.images:
+            return
+
+        # Use first image (most common case)
+        first_image = slide.images[0]
+        resolved_path = resolve_image_path(first_image.path, self.presentation_path)
+
+        if not resolved_path:
+            image_widget.clear()
+            return
+
+        # Set the image
+        image_widget.set_image(
+            resolved_path,
+            width=first_image.width,
+            height=first_image.height,
+        )
+        image_container.add_class("visible")
+
+        # Apply layout and positioning
+        self._apply_image_layout(
+            first_image,
+            resolved_path,
+            image_container,
+            slide_container,
+            horizontal_container,
+        )
+
+    def _apply_image_layout(
+        self,
+        image,
+        resolved_path: Path,
+        image_container,
+        slide_container,
+        horizontal_container,
+    ) -> None:
+        """Apply layout classes and width for an image."""
+        # Calculate width for fit_vertical mode
+        container_width_percent = None
+        if image.fit_vertical and image.layout in ("left", "right"):
+            calculated_width = self._calculate_fit_width(resolved_path, image_container)
+            if calculated_width:
+                container_width_percent = calculated_width
+
+        # Apply layout based on MARP directive
+        match image.layout:
+            case "left":
+                image_container.add_class("layout-left")
+                horizontal_container.move_child(image_container, before=slide_container)
+            case "right":
+                image_container.add_class("layout-right")
+                horizontal_container.move_child(image_container, after=slide_container)
+            case "inline" | "background" | "fit":
+                image_container.add_class("layout-below")
+                horizontal_container.add_class("vertical-layout")
+                horizontal_container.move_child(image_container, after=slide_container)
+
+        # Apply dynamic width
+        if container_width_percent is not None:
+            image_container.styles.width = f"{container_width_percent}%"
+        elif image.size_percent != 50 and image.layout in ("left", "right"):
+            image_container.styles.width = f"{image.size_percent}%"
+        else:
+            image_container.styles.width = None
 
     def _update_progress_bar(self) -> None:
         """Update the progress bar and reveal indicator."""
@@ -1007,9 +1024,7 @@ class PrezoApp(App):
             Width as percentage of total width, or None if calculation fails.
 
         """
-        try:
-            from PIL import Image as PILImage
-        except ImportError:
+        if not HAS_PIL:
             return None
 
         try:
@@ -1210,8 +1225,6 @@ class PrezoApp(App):
 
     def _apply_theme(self, theme_name: str) -> None:
         """Apply theme colors to all widgets by re-rendering everything."""
-        from textual.color import Color
-
         theme = get_theme(theme_name)
 
         # Parse colors once

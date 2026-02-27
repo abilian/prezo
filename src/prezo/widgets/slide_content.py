@@ -10,6 +10,7 @@ from prezo.layout import (
     render_layout,
     render_styled_markdown,
 )
+from prezo.themes import THEMES
 
 
 class SlideContent(Static):
@@ -53,8 +54,6 @@ class SlideContent(Static):
 
     def _get_theme_colors(self) -> tuple[str, str, str]:
         """Get theme colors (primary, text, surface) from the app's theme."""
-        from prezo.themes import THEMES
-
         try:
             if self.is_attached:
                 theme_name = getattr(self.app, "app_theme", None)

@@ -237,10 +237,35 @@ def combine_svgs_to_pdf(
             return _combine_svgs_to_pdf_cairosvg(svg_files, output)
 
 
-def _combine_svgs_to_pdf_chrome(svg_files: list[Path], output: Path) -> Path:
-    """Combine SVGs to PDF using Chrome headless."""
+def _cleanup_temp_files(pdf_pages: list[Path]) -> None:
+    """Clean up temporary PDF files."""
+    for p in pdf_pages:
+        p.unlink(missing_ok=True)
+
+
+def _merge_pdfs(pdf_pages: list[Path], output: Path) -> None:
+    """Merge multiple PDF pages into a single PDF file."""
+    from pypdf import PdfReader, PdfWriter  # noqa: PLC0415
+
+    writer = PdfWriter()
+    for pdf_path in pdf_pages:
+        reader = PdfReader(pdf_path)
+        for page in reader.pages:
+            writer.add_page(page)
+
+    with open(output, "wb") as f:
+        writer.write(f)
+
+
+def _combine_svgs_to_pdf_with_converter(
+    svg_files: list[Path],
+    output: Path,
+    converter: callable,
+    converter_name: str,
+) -> Path:
+    """Combine SVGs to PDF using a specified converter function."""
     try:
-        from pypdf import PdfReader, PdfWriter  # noqa: PLC0415
+        from pypdf import PdfReader, PdfWriter  # noqa: PLC0415, F401
     except ImportError as e:
         msg = "Required package not installed. Install with:\n  pip install pypdf"
         raise ExportError(msg) from e
@@ -252,86 +277,37 @@ def _combine_svgs_to_pdf_chrome(svg_files: list[Path], output: Path) -> Path:
             with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
                 pdf_path = Path(tmp.name)
 
-            if not _convert_svg_to_pdf_chrome(svg_file, pdf_path):
-                for p in pdf_pages:
-                    p.unlink(missing_ok=True)
-                msg = "Chrome PDF conversion failed"
+            if not converter(svg_file, pdf_path):
+                _cleanup_temp_files(pdf_pages)
+                msg = f"{converter_name} conversion failed"
                 raise ExportError(msg)
 
             pdf_pages.append(pdf_path)
 
-        # Combine all pages
-        writer = PdfWriter()
-        for pdf_path in pdf_pages:
-            reader = PdfReader(pdf_path)
-            for page in reader.pages:
-                writer.add_page(page)
-
-        with open(output, "wb") as f:
-            writer.write(f)
-
-        # Clean up temp files
-        for p in pdf_pages:
-            p.unlink(missing_ok=True)
-
+        _merge_pdfs(pdf_pages, output)
+        _cleanup_temp_files(pdf_pages)
         return output
 
     except ExportError:
         raise
     except Exception as e:
-        for p in pdf_pages:
-            p.unlink(missing_ok=True)
+        _cleanup_temp_files(pdf_pages)
         msg = f"PDF generation failed: {e}"
         raise ExportError(msg) from e
+
+
+def _combine_svgs_to_pdf_chrome(svg_files: list[Path], output: Path) -> Path:
+    """Combine SVGs to PDF using Chrome headless."""
+    return _combine_svgs_to_pdf_with_converter(
+        svg_files, output, _convert_svg_to_pdf_chrome, "Chrome"
+    )
 
 
 def _combine_svgs_to_pdf_inkscape(svg_files: list[Path], output: Path) -> Path:
     """Combine SVGs to PDF using Inkscape."""
-    try:
-        from pypdf import PdfReader, PdfWriter  # noqa: PLC0415
-    except ImportError as e:
-        msg = "Required package not installed. Install with:\n  pip install pypdf"
-        raise ExportError(msg) from e
-
-    pdf_pages: list[Path] = []
-
-    try:
-        for svg_file in svg_files:
-            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-                pdf_path = Path(tmp.name)
-
-            if not _convert_svg_to_pdf_inkscape(svg_file, pdf_path):
-                # Clean up and fail
-                for p in pdf_pages:
-                    p.unlink(missing_ok=True)
-                msg = "Inkscape conversion failed"
-                raise ExportError(msg)
-
-            pdf_pages.append(pdf_path)
-
-        # Combine all pages
-        writer = PdfWriter()
-        for pdf_path in pdf_pages:
-            reader = PdfReader(pdf_path)
-            for page in reader.pages:
-                writer.add_page(page)
-
-        with open(output, "wb") as f:
-            writer.write(f)
-
-        # Clean up temp files
-        for p in pdf_pages:
-            p.unlink(missing_ok=True)
-
-        return output
-
-    except ExportError:
-        raise
-    except Exception as e:
-        for p in pdf_pages:
-            p.unlink(missing_ok=True)
-        msg = f"PDF generation failed: {e}"
-        raise ExportError(msg) from e
+    return _combine_svgs_to_pdf_with_converter(
+        svg_files, output, _convert_svg_to_pdf_inkscape, "Inkscape"
+    )
 
 
 def _combine_svgs_to_pdf_cairosvg(svg_files: list[Path], output: Path) -> Path:

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -211,6 +210,41 @@ def extract_slide_incremental(content: str) -> bool | None:
     return None
 
 
+def _parse_bool(value: str) -> bool:
+    """Parse a boolean value from a string."""
+    return value.lower() in ("true", "1", "yes", "on")
+
+
+def _parse_int_or_none(value: str) -> int | None:
+    """Parse an integer from a string, returning None on failure."""
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+# Mapping of directive key aliases to (config_attr, parser_func)
+_DIRECTIVE_HANDLERS: dict[str, tuple[str, callable]] = {
+    "theme": ("theme", str),
+    "show_clock": ("show_clock", _parse_bool),
+    "showclock": ("show_clock", _parse_bool),
+    "show_elapsed": ("show_elapsed", _parse_bool),
+    "showelapsed": ("show_elapsed", _parse_bool),
+    "countdown_minutes": ("countdown_minutes", _parse_int_or_none),
+    "countdown": ("countdown_minutes", _parse_int_or_none),
+    "countdownminutes": ("countdown_minutes", _parse_int_or_none),
+    "time_budget": ("time_budget_minutes", _parse_int_or_none),
+    "time_budget_minutes": ("time_budget_minutes", _parse_int_or_none),
+    "timebudget": ("time_budget_minutes", _parse_int_or_none),
+    "image_mode": ("image_mode", str),
+    "imagemode": ("image_mode", str),
+    "images": ("image_mode", str),
+    "incremental_lists": ("incremental_lists", _parse_bool),
+    "incremental": ("incremental_lists", _parse_bool),
+    "incrementallists": ("incremental_lists", _parse_bool),
+}
+
+
 def extract_prezo_directives(content: str) -> PresentationConfig:
     """Extract Prezo-specific directives from presentation content.
 
@@ -246,23 +280,12 @@ def extract_prezo_directives(content: str) -> PresentationConfig:
         key = key.strip().lower()
         value = value.strip()
 
-        # Parse known directives
-        if key == "theme":
-            config.theme = value
-        elif key in ("show_clock", "showclock"):
-            config.show_clock = value.lower() in ("true", "1", "yes", "on")
-        elif key in ("show_elapsed", "showelapsed"):
-            config.show_elapsed = value.lower() in ("true", "1", "yes", "on")
-        elif key in ("countdown_minutes", "countdown", "countdownminutes"):
-            with contextlib.suppress(ValueError):
-                config.countdown_minutes = int(value)
-        elif key in ("time_budget", "time_budget_minutes", "timebudget"):
-            with contextlib.suppress(ValueError):
-                config.time_budget_minutes = int(value)
-        elif key in ("image_mode", "imagemode", "images"):
-            config.image_mode = value
-        elif key in ("incremental_lists", "incremental", "incrementallists"):
-            config.incremental_lists = value.lower() in ("true", "1", "yes", "on")
+        # Look up handler for this directive
+        if key in _DIRECTIVE_HANDLERS:
+            attr, parser = _DIRECTIVE_HANDLERS[key]
+            parsed_value = parser(value)
+            if parsed_value is not None:
+                setattr(config, attr, parsed_value)
 
     return config
 

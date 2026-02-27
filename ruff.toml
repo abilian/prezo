@@ -17,6 +17,10 @@ lint.extend-ignore = [
     "COM812", # ...
     "T201", # Print...
     "SIM117", # Nested `with` statements (this is a fundamental pattern in Textual)
+    # Subprocess - needed
+    "S603", # subprocess call - intentional for $EDITOR
+    "S607", #   	start-process-with-partial-path
+    "S606", #   	start-process-with-no-shell
 
     # Fix later (or not)
     "FBT001", # Boolean positional arg - common in widget/Textual APIs
@@ -24,7 +28,6 @@ lint.extend-ignore = [
     "FBT003", # Boolean positional value - common with reactive()
     "ARG002", # Unused argument - common in watch methods/event handlers
     "PLR0913", # Too many arguments - export functions need them
-    "S603", # subprocess call - intentional for $EDITOR
     "BLE001", # Blind exception - acceptable for user-facing error handling
     "SLF001", # Private member access - accessing own class's private attrs
     "PLW2901", # Loop variable overwritten - common strip() pattern
@@ -35,14 +38,13 @@ lint.extend-ignore = [
     "S110", # try-except-pass - acceptable for config loading with defaults
     "PLW0603", # global statement - used for singleton config/state
     "TRY300", # return in try block - cleaner for import checks
-    # "TC001", # type-checking import - used at runtime
-    # "TC003", # type-checking import - not needed for protocol definitions
-    # "TC002", # type-checking import - Textual uses these at runtime
     "PERF401", # list comprehension - explicit append loop is clearer
     "RUF003",
     "E501",
     "TRY301", #	raise-within-try
-    "C901", #  	complex-structure
+    "SIM108", # Use ternary operator
+    "PLR2004", #	magic-value-comparison
+    "PERF203", #	try-except-in-loop
 ]
 
 [lint.extend-per-file-ignores]
@@ -64,7 +66,6 @@ lint.extend-ignore = [
     "PLC0415", # Lazy imports for optional dependencies (PIL, libsixel)
     "E501", # Long character set strings
     "C901", # Complex sixel encoder - follows protocol specification
-    "ERA001", # Protocol documentation in comments
 ]
 "src/prezo/widgets/*.py" = [
     "A002", # id is a common parameter name in Textual widgets

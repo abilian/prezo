@@ -185,6 +185,139 @@ def _render_text_with_formatting(
     return result
 
 
+class _MarkdownRenderer:
+    """Helper class for rendering styled markdown content."""
+
+    def __init__(
+        self,
+        primary_color: str,
+        text_color: str,
+        surface_color: str,
+    ) -> None:
+        self.primary_color = primary_color
+        self.text_color = text_color
+        self.surface_color = surface_color
+        self.base_style = f"{text_color} on {surface_color}"
+        self.renderables: list[RenderableType] = []
+        self.current_block: list[str] = []
+        self.in_list = False
+
+    def flush_block(self) -> None:
+        """Flush accumulated lines as regular markdown."""
+        if self.current_block:
+            block_text = "\n".join(self.current_block).strip()
+            if block_text:
+                self.renderables.append(Markdown(block_text, style=self.base_style))
+            self.current_block.clear()
+        self.in_list = False
+
+    def end_list(self) -> None:
+        """End current list block with spacing."""
+        if self.in_list:
+            self.renderables.append(Text("", style=self.base_style))
+            self.in_list = False
+
+    def render_list_item(self, indent: str, marker: str, text: str) -> None:
+        """Render a list item with proper styling and hanging indent."""
+        if not self.in_list:
+            self.renderables.append(Text("", style=self.base_style))
+            self.in_list = True
+
+        indent_level = len(indent) // 2 if indent else 0
+        visual_indent = "  " * indent_level
+        bullet = "•" if marker in "-*+" else marker
+        prefix = f"{visual_indent}{bullet} "
+        self.renderables.append(_HangingIndentText(prefix, text, self.base_style))
+
+    def render_h1(self, title: str) -> None:
+        """Render an H1 heading."""
+        self.flush_block()
+        self.renderables.append(Text("", style=self.base_style))
+        panel = Panel(
+            Text(title, style=f"bold {self.text_color}", justify="center"),
+            border_style=self.primary_color,
+            box=rich.box.HEAVY,
+            padding=(0, 2),
+            style=self.base_style,
+        )
+        self.renderables.append(panel)
+        self.renderables.append(Text("", style=self.base_style))
+
+    def render_h2(self, title: str) -> None:
+        """Render an H2 heading."""
+        self.flush_block()
+        self.renderables.append(Text("", style=self.base_style))
+        self.renderables.append(
+            Text(
+                title,
+                style=f"bold {self.primary_color} on {self.surface_color}",
+                justify="center",
+            )
+        )
+        self.renderables.append(Text("", style=self.base_style))
+
+    def process_line(self, line: str) -> None:
+        """Process a single line of markdown."""
+        # Check for H1
+        h1_match = _H1_PATTERN.match(line)
+        if h1_match:
+            self.render_h1(h1_match.group(1).strip())
+            return
+
+        # Check for H2
+        h2_match = _H2_PATTERN.match(line)
+        if h2_match:
+            self.render_h2(h2_match.group(1).strip())
+            return
+
+        # Check for bullet list
+        bullet_match = _BULLET_LIST_PATTERN.match(line)
+        if bullet_match:
+            if not self.in_list:
+                self.flush_block()
+            self.render_list_item(
+                bullet_match.group(1), bullet_match.group(2), bullet_match.group(3)
+            )
+            return
+
+        # Check for numbered list
+        numbered_match = _NUMBERED_LIST_PATTERN.match(line)
+        if numbered_match:
+            if not self.in_list:
+                self.flush_block()
+            self.render_list_item(
+                numbered_match.group(1),
+                numbered_match.group(2),
+                numbered_match.group(3),
+            )
+            return
+
+        # Empty line in a list - skip it
+        if self.in_list and not line.strip():
+            return
+
+        # End list if we hit non-list content
+        if self.in_list:
+            self.end_list()
+
+        # Regular content
+        self.current_block.append(line)
+
+    def render(self, content: str) -> RenderableType:
+        """Render the full content and return a Rich renderable."""
+        for line in content.split("\n"):
+            self.process_line(line)
+
+        self.end_list()
+        self.flush_block()
+
+        if len(self.renderables) == 0:
+            return Text("")
+        if len(self.renderables) == 1:
+            return self.renderables[0]
+        return Group(*self.renderables)
+
+
 def render_styled_markdown(
     content: str,
     primary_color: str = "#0178d4",
@@ -209,139 +342,8 @@ def render_styled_markdown(
     if not content.strip():
         return Text("")
 
-    # Base style with background color
-    base_style = f"{text_color} on {surface_color}"
-
-    renderables: list[RenderableType] = []
-    lines = content.split("\n")
-    current_block: list[str] = []
-    in_list = False
-
-    def flush_block() -> None:
-        """Flush accumulated lines as regular markdown."""
-        nonlocal in_list
-        if current_block:
-            block_text = "\n".join(current_block).strip()
-            if block_text:
-                renderables.append(Markdown(block_text, style=base_style))
-            current_block.clear()
-        in_list = False
-
-    def end_list() -> None:
-        """End current list block with spacing."""
-        nonlocal in_list
-        if in_list:
-            # Add blank line after list
-            renderables.append(Text("", style=base_style))
-            in_list = False
-
-    def render_list_item(indent: str, marker: str, text: str) -> None:
-        """Render a list item with proper styling and hanging indent."""
-        nonlocal in_list
-
-        # If starting a new list, add spacing before
-        if not in_list:
-            renderables.append(Text("", style=base_style))
-            in_list = True
-
-        # Convert indent to visual spaces (2 spaces per level)
-        indent_level = len(indent) // 2 if indent else 0
-        visual_indent = "  " * indent_level
-
-        # Use bullet character for unordered lists
-        if marker in "-*+":
-            bullet = "•"
-        else:
-            bullet = marker  # Keep numbered marker as-is
-
-        # Create a hanging indent renderable
-        prefix = f"{visual_indent}{bullet} "
-        renderables.append(_HangingIndentText(prefix, text, base_style))
-
-    for line in lines:
-        # Check for H1
-        h1_match = _H1_PATTERN.match(line)
-        if h1_match:
-            flush_block()
-            title = h1_match.group(1).strip()
-            # Add top margin
-            renderables.append(Text("", style=base_style))
-            # H1: Heavy-bordered panel with centered bold text
-            panel = Panel(
-                Text(title, style=f"bold {text_color}", justify="center"),
-                border_style=primary_color,
-                box=rich.box.HEAVY,
-                padding=(0, 2),
-                style=base_style,
-            )
-            renderables.append(panel)
-            # Add bottom margin
-            renderables.append(Text("", style=base_style))
-            continue
-
-        # Check for H2
-        h2_match = _H2_PATTERN.match(line)
-        if h2_match:
-            flush_block()
-            title = h2_match.group(1).strip()
-            # Add top margin
-            renderables.append(Text("", style=base_style))
-            # H2: Centered bold text in primary color
-            renderables.append(
-                Text(
-                    title,
-                    style=f"bold {primary_color} on {surface_color}",
-                    justify="center",
-                )
-            )
-            # Add bottom margin
-            renderables.append(Text("", style=base_style))
-            continue
-
-        # Check for bullet list
-        bullet_match = _BULLET_LIST_PATTERN.match(line)
-        if bullet_match:
-            if not in_list:
-                flush_block()  # Flush any pending text before list
-            render_list_item(
-                bullet_match.group(1),
-                bullet_match.group(2),
-                bullet_match.group(3),
-            )
-            continue
-
-        # Check for numbered list
-        numbered_match = _NUMBERED_LIST_PATTERN.match(line)
-        if numbered_match:
-            if not in_list:
-                flush_block()  # Flush any pending text before list
-            render_list_item(
-                numbered_match.group(1),
-                numbered_match.group(2),
-                numbered_match.group(3),
-            )
-            continue
-
-        # If we're in a list and hit an empty line, skip it (don't end list yet)
-        if in_list and not line.strip():
-            continue
-
-        # If we were in a list and hit a non-empty non-list line, end the list
-        if in_list:
-            end_list()
-
-        # Regular content
-        current_block.append(line)
-
-    # End any open list and flush remaining content
-    end_list()
-    flush_block()
-
-    if len(renderables) == 0:
-        return Text("")
-    if len(renderables) == 1:
-        return renderables[0]
-    return Group(*renderables)
+    renderer = _MarkdownRenderer(primary_color, text_color, surface_color)
+    return renderer.render(content)
 
 
 # -----------------------------------------------------------------------------
