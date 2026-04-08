@@ -4,6 +4,13 @@ All notable changes to Prezo are documented in this file.
 
 Starting with version 2026.1.1, Prezo uses [CalVer](https://calver.org/) versioning (YYYY.M.patch).
 
+## [2026.4.1] - 2026-04-08
+
+### Fixed
+- **Code blocks** - `#` comments inside fenced code blocks are no longer rendered as H1 headings
+- **Bold in titles** - `**bold**`, `*italic*`, `` `code` `` and links in H1/H2 headings now render with proper styling instead of showing raw markers
+- **URL splitting in lists** - Markdown links and bare URLs in list items are no longer broken across lines during word wrapping
+
 ## [2026.2.4] - 2026-02-27
 
 ### Changed
