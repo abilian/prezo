@@ -54,7 +54,7 @@ class KittyImageManager:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
-        return cls._instance  # type: ignore[return-value]
+        return cls._instance  # type: ignore[return-value]  # ty: ignore[invalid-return-type]
 
     def __init__(self) -> None:
         """Initialize the Kitty image manager."""

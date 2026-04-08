@@ -14,7 +14,7 @@ import tty
 from datetime import datetime, timezone
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, cast
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding, BindingType
@@ -23,18 +23,6 @@ from textual.command import Hit, Hits, Provider
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.reactive import reactive
 from textual.widgets import Footer, Header, Markdown, Static
-
-if TYPE_CHECKING:
-    from textual.timer import Timer
-
-# Optional PIL for image dimension calculations
-try:
-    from PIL import Image as PILImage
-
-    HAS_PIL = True
-except ImportError:
-    PILImage = None  # type: ignore[assignment, misc]
-    HAS_PIL = False
 
 from .config import CONFIG_DIR, Config, SessionState, get_config, get_state, save_state
 from .images.ascii import HalfBlockRenderer
@@ -52,6 +40,21 @@ from .screens import (
 from .terminal import ImageCapability, detect_image_capability
 from .themes import get_next_theme, get_theme, register_custom_themes
 from .widgets import ImageDisplay, SlideContent, StatusBar
+
+if TYPE_CHECKING:
+    import types
+
+    from textual.timer import Timer
+
+# Optional PIL for image dimension calculations
+HAS_PIL = False
+PILImage: types.ModuleType | None = None  # type: ignore[possibly-undefined]
+try:
+    from PIL import Image as PILImage  # type: ignore[assignment]
+
+    HAS_PIL = True
+except ImportError:
+    pass
 
 WELCOME_MESSAGE = """\
 # Welcome to Prezo
@@ -243,7 +246,7 @@ class PrezoCommands(Provider):
     @property
     def _app(self) -> PrezoApp:
         """Get the app instance."""
-        return self.app  # type: ignore[return-value]
+        return cast("PrezoApp", self.app)
 
     async def search(self, query: str) -> Hits:
         """Search for matching commands."""
