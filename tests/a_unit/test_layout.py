@@ -2,13 +2,27 @@
 
 from __future__ import annotations
 
+from io import StringIO
+
+from rich.console import Console
+
 from prezo.layout import (
     LayoutBlock,
     _visible_length,
     has_layout_blocks,
     parse_layout,
     render_layout,
+    render_styled_markdown,
 )
+
+
+def _render_to_text(content: str, width: int = 80) -> str:
+    """Render styled markdown to plain text for assertions."""
+    renderable = render_styled_markdown(content)
+    console = Console(file=StringIO(), width=width, force_terminal=True)
+    with console.capture() as capture:
+        console.print(renderable)
+    return capture.get()
 
 
 class TestHasLayoutBlocks:
@@ -837,3 +851,97 @@ Content 2
         renderer = ColumnsRenderable(columns, gap=2)
         console = Console(width=60, force_terminal=True)
         list(renderer.__rich_console__(console, console.options))
+
+
+# ---------------------------------------------------------------------------
+# Bug fix regression tests
+# ---------------------------------------------------------------------------
+
+
+class TestCodeFenceNotParsedAsHeading:
+    """Bug fix: # comments inside fenced code blocks must not render as H1."""
+
+    def test_hash_comment_in_code_block(self):
+        content = "```python\n# This is a comment\nprint('hello')\n```"
+        text = _render_to_text(content)
+        # Should NOT contain H1 panel border characters
+        assert "━" not in text
+        # The comment should appear as-is
+        assert "# This is a comment" in text
+
+    def test_multiple_hash_lines_in_code_block(self):
+        content = "```bash\n# Step 1\necho hello\n# Step 2\necho world\n```"
+        text = _render_to_text(content)
+        assert "# Step 1" in text
+        assert "# Step 2" in text
+        assert "━" not in text
+
+    def test_heading_outside_code_block_still_works(self):
+        content = "# Real Title\n\n```python\n# comment\n```"
+        text = _render_to_text(content)
+        # H1 panel border should appear (for the real title)
+        assert "━" in text
+        assert "Real Title" in text
+        # Comment should appear verbatim
+        assert "# comment" in text
+
+    def test_code_fence_state_resets_between_blocks(self):
+        content = "```\ncode\n```\n\n# Heading After Code"
+        text = _render_to_text(content)
+        # The heading after the closed fence should be styled as H1
+        assert "━" in text
+        assert "Heading After Code" in text
+
+
+class TestBoldMarkersInHeadings:
+    """Bug fix: **bold** markers in H1/H2 titles should render as bold, not literal."""
+
+    def test_h1_bold_markers_not_visible(self):
+        content = "# **Important** Title"
+        text = _render_to_text(content)
+        assert "**" not in text
+        assert "Important" in text
+        assert "Title" in text
+
+    def test_h2_bold_markers_not_visible(self):
+        content = "## A **key** concept"
+        text = _render_to_text(content)
+        assert "**" not in text
+        assert "key" in text
+        assert "concept" in text
+
+    def test_h1_without_bold_unchanged(self):
+        content = "# Plain Title"
+        text = _render_to_text(content)
+        assert "Plain Title" in text
+
+    def test_h1_with_inline_code(self):
+        content = "# The `main` function"
+        text = _render_to_text(content)
+        assert "`" not in text
+        assert "main" in text
+
+
+class TestUrlNotSplitInListItems:
+    """Bug fix: markdown links in list items should stay atomic during word wrap."""
+
+    def test_link_kept_atomic(self):
+        from prezo.layout import _TOKEN_PATTERN
+
+        text = "See [the docs](https://example.com/very/long/path) for details"
+        tokens = _TOKEN_PATTERN.findall(text)
+        # The entire markdown link should be one token
+        assert "[the docs](https://example.com/very/long/path)" in tokens
+
+    def test_bare_url_kept_atomic(self):
+        from prezo.layout import _TOKEN_PATTERN
+
+        text = "Visit https://example.com/very/long/path/to/page for info"
+        tokens = _TOKEN_PATTERN.findall(text)
+        assert "https://example.com/very/long/path/to/page" in tokens
+
+    def test_link_renders_in_narrow_width(self):
+        content = "- Check [documentation](https://example.com/docs) now"
+        text = _render_to_text(content, width=40)
+        # The link text "documentation" should appear intact (not split)
+        assert "documentation" in text

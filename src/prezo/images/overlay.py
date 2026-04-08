@@ -21,7 +21,7 @@ from typing_extensions import Self
 from prezo.terminal import ImageCapability, detect_image_capability
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator
     from pathlib import Path
 
 
@@ -64,7 +64,7 @@ class ImageOverlayRenderer:
         self._last_rendered: list[ImageRequest] = []
 
     @contextlib.contextmanager
-    def _get_tty(self) -> Iterator[TextIO]:
+    def _get_tty(self) -> Generator[TextIO]:
         """Get TTY for direct terminal writes as a context manager."""
         tty: TextIO | None = None
         try:

@@ -78,14 +78,16 @@ class _HangingIndentText:
             text_width = max_width  # Fallback if too narrow
 
         # Wrap the plain text first, then apply formatting to each line
-        words = self.text.split()
+        # Use token-aware splitting to keep markdown links and URLs atomic
+        words = _TOKEN_PATTERN.findall(self.text)
         lines: list[str] = []
         current_line: list[str] = []
         current_width = 0
 
         for word in words:
-            # Calculate width of word (without markdown formatting)
-            clean_word = re.sub(r"\*\*(.+?)\*\*", r"\1", word)
+            # Calculate visible width of word (without markdown formatting)
+            clean_word = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", word)
+            clean_word = re.sub(r"\*\*(.+?)\*\*", r"\1", clean_word)
             clean_word = re.sub(r"\*(.+?)\*", r"\1", clean_word)
             clean_word = re.sub(r"`(.+?)`", r"\1", clean_word)
             word_width = cell_len(clean_word)
@@ -121,6 +123,17 @@ class _HangingIndentText:
     ) -> Measurement:
         """Return the measurement of this renderable."""
         return Measurement(len(self.prefix) + 1, options.max_width)
+
+
+# Pattern to tokenize text preserving markdown links and bare URLs as atomic units
+_TOKEN_PATTERN = re.compile(
+    r"""
+    \[[^\]]+\]\([^)]+\)        # markdown links [text](url)
+    | https?://\S+             # bare URLs
+    | \S+                      # regular words
+    """,
+    re.VERBOSE,
+)
 
 
 # Patterns for bullet and numbered lists
@@ -201,6 +214,7 @@ class _MarkdownRenderer:
         self.renderables: list[RenderableType] = []
         self.current_block: list[str] = []
         self.in_list = False
+        self.in_code_fence = False
 
     def flush_block(self) -> None:
         """Flush accumulated lines as regular markdown."""
@@ -233,8 +247,10 @@ class _MarkdownRenderer:
         """Render an H1 heading."""
         self.flush_block()
         self.renderables.append(Text("", style=self.base_style))
+        title_text = _render_text_with_formatting(title, f"bold {self.text_color}")
+        title_text.justify = "center"
         panel = Panel(
-            Text(title, style=f"bold {self.text_color}", justify="center"),
+            title_text,
             border_style=self.primary_color,
             box=rich.box.HEAVY,
             padding=(0, 2),
@@ -247,57 +263,59 @@ class _MarkdownRenderer:
         """Render an H2 heading."""
         self.flush_block()
         self.renderables.append(Text("", style=self.base_style))
-        self.renderables.append(
-            Text(
-                title,
-                style=f"bold {self.primary_color} on {self.surface_color}",
-                justify="center",
-            )
-        )
+        h2_style = f"bold {self.primary_color} on {self.surface_color}"
+        title_text = _render_text_with_formatting(title, h2_style)
+        title_text.justify = "center"
+        self.renderables.append(title_text)
         self.renderables.append(Text("", style=self.base_style))
+
+    def _process_list_match(self, indent: str, marker: str, text: str) -> None:
+        """Process a matched list item (bullet or numbered)."""
+        if not self.in_list:
+            self.flush_block()
+        self.render_list_item(indent, marker, text)
 
     def process_line(self, line: str) -> None:
         """Process a single line of markdown."""
-        # Check for H1
+        # Track fenced code blocks - lines inside them are passed through raw
+        if line.startswith("```"):
+            self.in_code_fence = not self.in_code_fence
+        if self.in_code_fence or line.startswith("```"):
+            self.current_block.append(line)
+            return
+
+        # Check for headings
         h1_match = _H1_PATTERN.match(line)
         if h1_match:
             self.render_h1(h1_match.group(1).strip())
             return
 
-        # Check for H2
         h2_match = _H2_PATTERN.match(line)
         if h2_match:
             self.render_h2(h2_match.group(1).strip())
             return
 
-        # Check for bullet list
+        # Check for list items
         bullet_match = _BULLET_LIST_PATTERN.match(line)
         if bullet_match:
-            if not self.in_list:
-                self.flush_block()
-            self.render_list_item(
+            self._process_list_match(
                 bullet_match.group(1), bullet_match.group(2), bullet_match.group(3)
             )
             return
 
-        # Check for numbered list
         numbered_match = _NUMBERED_LIST_PATTERN.match(line)
         if numbered_match:
-            if not self.in_list:
-                self.flush_block()
-            self.render_list_item(
+            self._process_list_match(
                 numbered_match.group(1),
                 numbered_match.group(2),
                 numbered_match.group(3),
             )
             return
 
-        # Empty line in a list - skip it
-        if self.in_list and not line.strip():
-            return
-
-        # End list if we hit non-list content
+        # Handle list termination
         if self.in_list:
+            if not line.strip():
+                return  # Empty line in a list - skip it
             self.end_list()
 
         # Regular content
