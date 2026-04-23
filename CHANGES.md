@@ -4,6 +4,16 @@ All notable changes to Prezo are documented in this file.
 
 Starting with version 2026.1.1, Prezo uses [CalVer](https://calver.org/) versioning (YYYY.M.patch).
 
+## [2026.4.2] - 2026-04-23
+
+### Fixed
+- **Inline formatting in boxes** - `*italic*`, `` `code` ``, and `[links](url)` inside `::: box` blocks now render properly (previously only `**bold**` worked)
+- **Wrapped bold/italic** - Bold and italic spans in list items no longer lose their styling when word-wrapping splits them across lines
+- **Extra space before boxes** - Removed the duplicated blank line that appeared before every box block (Rich's Markdown renderer already contributes the needed spacing)
+
+### Documentation
+- **Cheat sheet** - Documented link navigation mode (`Tab`, `j`/`k`, `Enter`, `Escape`) and the `-v` version flag
+
 ## [2026.4.1] - 2026-04-08
 
 ### Fixed
