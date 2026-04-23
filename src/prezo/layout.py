@@ -77,45 +77,18 @@ class _HangingIndentText:
         if text_width < 10:
             text_width = max_width  # Fallback if too narrow
 
-        # Wrap the plain text first, then apply formatting to each line
-        # Use token-aware splitting to keep markdown links and URLs atomic
-        words = _TOKEN_PATTERN.findall(self.text)
-        lines: list[str] = []
-        current_line: list[str] = []
-        current_width = 0
-
-        for word in words:
-            # Calculate visible width of word (without markdown formatting)
-            clean_word = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", word)
-            clean_word = re.sub(r"\*\*(.+?)\*\*", r"\1", clean_word)
-            clean_word = re.sub(r"\*(.+?)\*", r"\1", clean_word)
-            clean_word = re.sub(r"`(.+?)`", r"\1", clean_word)
-            word_width = cell_len(clean_word)
-
-            space_width = 1 if current_line else 0
-
-            if current_width + space_width + word_width > text_width and current_line:
-                # Start a new line
-                lines.append(" ".join(current_line))
-                current_line = []
-                current_width = 0
-                space_width = 0
-
-            current_line.append(word)
-            current_width += word_width + space_width
-
-        if current_line:
-            lines.append(" ".join(current_line))
+        # Pre-render the full text with inline formatting so styles (bold,
+        # italic, code, links) span correctly across line wraps. Rich's
+        # Text.wrap is style-aware and preserves styling across breaks.
+        formatted = _render_text_with_formatting(self.text, self.base_style)
+        lines = formatted.wrap(console, text_width)
 
         # Build output with hanging indent
         indent = " " * prefix_width
-        for i, line_text in enumerate(lines):
+        for i, line in enumerate(lines):
             result = Text(style=self.base_style)
-            if i == 0:
-                result.append(self.prefix)
-            else:
-                result.append(indent)
-            result.append_text(_render_text_with_formatting(line_text, self.base_style))
+            result.append(self.prefix if i == 0 else indent)
+            result.append_text(line)
             yield result
 
     def __rich_measure__(
@@ -123,17 +96,6 @@ class _HangingIndentText:
     ) -> Measurement:
         """Return the measurement of this renderable."""
         return Measurement(len(self.prefix) + 1, options.max_width)
-
-
-# Pattern to tokenize text preserving markdown links and bare URLs as atomic units
-_TOKEN_PATTERN = re.compile(
-    r"""
-    \[[^\]]+\]\([^)]+\)        # markdown links [text](url)
-    | https?://\S+             # bare URLs
-    | \S+                      # regular words
-    """,
-    re.VERBOSE,
-)
 
 
 # Patterns for bullet and numbered lists
@@ -996,13 +958,9 @@ def render_layout(
         Rich renderable representing the layout.
 
     """
-    base_style = f"{text_color} on {surface_color}"
     renderables: list[RenderableType] = []
 
-    for i, block in enumerate(blocks):
-        # Add spacing before box blocks (except the first one)
-        if block.type == "box" and i > 0:
-            renderables.append(Text("", style=base_style))
+    for block in blocks:
         renderables.extend(
             _render_block(block, primary_color, text_color, surface_color)
         )
@@ -1016,9 +974,6 @@ def render_layout(
 # Utilities
 # -----------------------------------------------------------------------------
 
-# Pattern for **bold** text
-_BOLD_PATTERN = re.compile(r"\*\*(.+?)\*\*")
-
 # Pattern for bullet list items
 _BULLET_PATTERN = re.compile(r"^[-*+]\s+(.*)$")
 
@@ -1027,31 +982,16 @@ _NUMBERED_PATTERN = re.compile(r"^(\d+\.)\s+(.*)$")
 
 
 def _parse_inline_formatting(text: str) -> Text:
-    """Parse inline markdown formatting like **bold**.
+    """Parse inline markdown formatting: **bold**, *italic*, `code`, [links](url).
 
     Args:
-        text: Text with possible **bold** markers.
+        text: Text with possible markdown formatting markers.
 
     Returns:
         Rich Text object with appropriate styling.
 
     """
-    result = Text()
-    last_end = 0
-
-    for match in _BOLD_PATTERN.finditer(text):
-        # Add text before match
-        if match.start() > last_end:
-            result.append(text[last_end : match.start()])
-        # Add bold text
-        result.append(match.group(1), style="bold")
-        last_end = match.end()
-
-    # Add remaining text
-    if last_end < len(text):
-        result.append(text[last_end:])
-
-    return result
+    return _render_text_with_formatting(text, "")
 
 
 def _render_box_content(content: str) -> Text:

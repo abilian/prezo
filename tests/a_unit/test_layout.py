@@ -922,26 +922,86 @@ class TestBoldMarkersInHeadings:
         assert "main" in text
 
 
-class TestUrlNotSplitInListItems:
-    """Bug fix: markdown links in list items should stay atomic during word wrap."""
-
-    def test_link_kept_atomic(self):
-        from prezo.layout import _TOKEN_PATTERN
-
-        text = "See [the docs](https://example.com/very/long/path) for details"
-        tokens = _TOKEN_PATTERN.findall(text)
-        # The entire markdown link should be one token
-        assert "[the docs](https://example.com/very/long/path)" in tokens
-
-    def test_bare_url_kept_atomic(self):
-        from prezo.layout import _TOKEN_PATTERN
-
-        text = "Visit https://example.com/very/long/path/to/page for info"
-        tokens = _TOKEN_PATTERN.findall(text)
-        assert "https://example.com/very/long/path/to/page" in tokens
+class TestWrappedInlineFormattingInListItems:
+    """Bug fix: bold/italic spans in wrapped list items keep their styling."""
 
     def test_link_renders_in_narrow_width(self):
         content = "- Check [documentation](https://example.com/docs) now"
         text = _render_to_text(content, width=40)
         # The link text "documentation" should appear intact (not split)
         assert "documentation" in text
+
+    def test_bold_across_wrapped_lines(self):
+        # Long bold span that must wrap across at least two output lines
+        content = (
+            "- **this is a rather long bold sentence that will wrap "
+            "across several lines for sure**"
+        )
+        text = _render_to_text(content, width=30)
+        # Raw ** markers must not leak through on any wrapped segment
+        assert "**" not in text
+        # Both ends of the bold span survive
+        assert "this is" in text
+        assert "sure" in text
+
+    def test_italic_across_wrapped_lines(self):
+        import re
+
+        content = (
+            "- *this is a rather long italic sentence that will wrap "
+            "across several lines for sure*"
+        )
+        text = _render_to_text(content, width=30)
+        # Standalone * markers (not inside a word) must not leak through
+        assert not re.search(r"(?<![A-Za-z])\*(?![A-Za-z])", text)
+        assert "this is" in text
+        assert "sure" in text
+
+    def test_bold_around_plain_text(self):
+        content = "- Start **some bold words** middle plain tail more here"
+        text = _render_to_text(content, width=25)
+        assert "**" not in text
+        assert "Start" in text
+        assert "middle" in text
+
+
+class TestInlineFormattingInBoxes:
+    """Bug fix: inline formatting inside ::: box blocks should render, not show raw markers."""
+
+    def _render_box(self, content: str, width: int = 60) -> str:
+        renderable = render_layout(parse_layout(content))
+        console = Console(file=StringIO(), width=width, force_terminal=True)
+        with console.capture() as capture:
+            console.print(renderable)
+        return capture.get()
+
+    def test_italic_in_box(self):
+        content = "::: box\nThis is *italic* text\n:::"
+        text = self._render_box(content)
+        # The italic markers should not appear literally
+        assert "*italic*" not in text
+        assert "italic" in text
+
+    def test_bold_in_box(self):
+        content = "::: box\nThis is **bold** text\n:::"
+        text = self._render_box(content)
+        assert "**bold**" not in text
+        assert "bold" in text
+
+    def test_code_in_box(self):
+        content = "::: box\nUse `print()` to output\n:::"
+        text = self._render_box(content)
+        assert "`print()`" not in text
+        assert "print()" in text
+
+    def test_link_in_box(self):
+        content = "::: box\nSee [the docs](https://example.com)\n:::"
+        text = self._render_box(content)
+        assert "[the docs]" not in text
+        assert "the docs" in text
+
+    def test_italic_in_box_bullet_item(self):
+        content = "::: box\n- An *emphasized* item\n:::"
+        text = self._render_box(content)
+        assert "*emphasized*" not in text
+        assert "emphasized" in text

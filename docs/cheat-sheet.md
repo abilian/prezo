@@ -34,6 +34,17 @@ Quick reference for Prezo - terminal-based Markdown presentations.
 | `b` | Blackout screen |
 | `w` | Whiteout screen |
 
+### Links
+
+| Key | Action |
+|-----|--------|
+| `Tab` | Enter link navigation mode |
+| `j` / `k` | Next / previous link (in link mode) |
+| `Enter` / `o` | Open selected link |
+| `Escape` | Exit link mode |
+
+Markdown links are also clickable with the mouse. URLs open in the browser; local file paths open with the system default application.
+
 ### Other
 
 | Key | Action |
@@ -49,6 +60,7 @@ Quick reference for Prezo - terminal-based Markdown presentations.
 ```bash
 # Basic usage
 prezo presentation.md
+prezo -v                                 # Show version
 
 # With options
 prezo presentation.md --theme dracula    # Set theme
