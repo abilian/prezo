@@ -994,56 +994,73 @@ def _parse_inline_formatting(text: str) -> Text:
     return _render_text_with_formatting(text, "")
 
 
-def _render_box_content(content: str) -> Text:
-    """Render box content with compact spacing.
+def _line_to_box_item(line: str) -> RenderableType | None:
+    """Turn a single non-empty line of box content into a renderable.
 
-    Handles the common pattern of a title line followed by a bullet list,
-    without the extra blank line that Rich's Markdown adds.
+    Returns a hanging-indent renderable for bullet/numbered list items,
+    or None if the line is plain text (caller accumulates it).
+    """
+    bullet_match = _BULLET_PATTERN.match(line)
+    if bullet_match:
+        return _HangingIndentText("• ", bullet_match.group(1), "")
+
+    numbered_match = _NUMBERED_PATTERN.match(line)
+    if numbered_match:
+        return _HangingIndentText(
+            f"{numbered_match.group(1)} ", numbered_match.group(2), ""
+        )
+    return None
+
+
+def _render_box_content(content: str) -> RenderableType:
+    """Render box content with compact spacing and hanging indent on lists.
+
+    List items use hanging indent so wrapped continuation lines align
+    under the text rather than the bullet character.
 
     Args:
         content: Markdown content for the box.
 
     Returns:
-        Rich Text object with compact formatting.
+        Rich renderable for the box content.
 
     """
-    lines = content.strip().split("\n")
+    lines = [line.strip() for line in content.strip().split("\n")]
     if not lines:
         return Text()
 
-    result = Text()
+    renderables: list[RenderableType] = []
+    text_buffer = Text()
 
-    for i, line in enumerate(lines):
-        stripped = line.strip()
+    def flush_text() -> None:
+        nonlocal text_buffer
+        if text_buffer.plain:
+            renderables.append(text_buffer)
+            text_buffer = Text()
 
+    for stripped in lines:
         if not stripped:
-            # Blank line - add single newline
-            if i > 0:
-                result.append("\n")
+            flush_text()
+            renderables.append(Text(""))
             continue
 
-        # Add newline before this line (except first)
-        if i > 0 and result.plain and not result.plain.endswith("\n"):
-            result.append("\n")
-
-        # Check for bullet list item
-        bullet_match = _BULLET_PATTERN.match(stripped)
-        if bullet_match:
-            result.append("  • ")
-            result.append(_parse_inline_formatting(bullet_match.group(1)))
+        item = _line_to_box_item(stripped)
+        if item is not None:
+            flush_text()
+            renderables.append(item)
             continue
 
-        # Check for numbered list item
-        numbered_match = _NUMBERED_PATTERN.match(stripped)
-        if numbered_match:
-            result.append(f"  {numbered_match.group(1)} ")
-            result.append(_parse_inline_formatting(numbered_match.group(2)))
-            continue
+        if text_buffer.plain:
+            text_buffer.append("\n")
+        text_buffer.append_text(_parse_inline_formatting(stripped))
 
-        # Regular text line
-        result.append(_parse_inline_formatting(stripped))
+    flush_text()
 
-    return result
+    if not renderables:
+        return Text()
+    if len(renderables) == 1:
+        return renderables[0]
+    return Group(*renderables)
 
 
 # ANSI escape sequence pattern

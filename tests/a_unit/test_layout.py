@@ -1005,3 +1005,32 @@ class TestInlineFormattingInBoxes:
         text = self._render_box(content)
         assert "*emphasized*" not in text
         assert "emphasized" in text
+
+    def test_bullet_in_box_uses_hanging_indent_when_wrapped(self):
+        # A long bullet item that must wrap inside the box border
+        content = (
+            "::: box\n"
+            "- this is a long bullet point that will need to wrap across "
+            "multiple lines inside the box\n"
+            ":::"
+        )
+        text = self._render_box(content, width=40)
+        # Strip ANSI codes and the panel borders to get the visible text area
+        import re
+
+        clean = re.sub(r"\x1b\[[0-9;]*m", "", text)
+        lines = [line for line in clean.split("\n") if "│" in line]
+        # At least two content lines must exist (the bullet had to wrap)
+        assert len(lines) >= 2
+        # Continuation lines (not containing the bullet "•") must be
+        # indented past the bullet column
+        continuation_lines = [line for line in lines if "•" not in line]
+        assert continuation_lines, "Expected at least one wrapped continuation line"
+        for line in continuation_lines:
+            # Text after the opening │ must be indented past the bullet
+            # column (bullet is "• " so continuations need at least 2 spaces
+            # plus the panel's own left padding)
+            after_border = line.split("│", 1)[1]
+            assert after_border.startswith("   "), (
+                f"continuation line not indented: {line!r}"
+            )
