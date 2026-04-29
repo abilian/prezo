@@ -1084,4 +1084,11 @@ def _visible_length(text: str) -> int:
     """
     # Strip ANSI codes first, then calculate cell width
     clean_text = _ANSI_PATTERN.sub("", text)
+
+    # Strip OSC 8 hyperlink opening: \x1b]8;id=ID;URL\x1b\\
+    clean_text = re.sub(r'\x1b\]8;id=[0-9]+;[^\x1b]*\x1b\\', '', clean_text)
+
+    # Strip OSC 8 hyperlink closing: \x1b]8;;\x1b\\
+    clean_text = re.sub(r'\x1b\]8;;\x1b\\', '', clean_text)
+
     return cell_len(clean_text)
