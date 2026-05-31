@@ -9,7 +9,9 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "textual>=0.89.1",
-    "textual-image>=0.8.0",
+    # Pinned <0.13: 0.13.x runs startup terminal queries whose responses can
+    # leak into stdin on some terminals and trigger the ? (help) binding.
+    "textual-image>=0.8.0,<0.13",
     "python-frontmatter>=1.1.0",
     # Export
     "cairosvg>=2.7.0",
