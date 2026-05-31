@@ -858,6 +858,63 @@ Content 2
 # ---------------------------------------------------------------------------
 
 
+class TestVoidDirectiveRedundantTerminator:
+    """Bug fix: a redundant closing ::: after a void directive must not leak.
+
+    spacer/divider are self-closing (void) directives. Authors frequently add a
+    closing ``:::`` by analogy with container divs (and the docs used to show
+    this). The stray ``:::`` must be tolerated, not emitted as literal text.
+    """
+
+    def test_spacer_with_redundant_close(self):
+        content = "LINE_ONE\n::: spacer 2\n:::\nLINE_TWO"
+        blocks = parse_layout(content)
+
+        types = [b.type for b in blocks]
+        assert types == ["plain", "spacer", "plain"]
+        assert blocks[0].content == "LINE_ONE"
+        # The stray ::: must NOT be glued to the following line.
+        assert blocks[2].content == "LINE_TWO"
+        assert ":::" not in blocks[2].content
+
+    def test_divider_with_redundant_close(self):
+        content = "ABOVE\n::: divider double\n:::\nBELOW"
+        blocks = parse_layout(content)
+
+        types = [b.type for b in blocks]
+        assert types == ["plain", "divider", "plain"]
+        assert blocks[1].style == "double"
+        assert blocks[2].content == "BELOW"
+        assert ":::" not in blocks[2].content
+
+    def test_spacer_redundant_close_with_blank_line(self):
+        content = "ABOVE\n::: spacer\n\n:::\n\nBELOW"
+        blocks = parse_layout(content)
+
+        types = [b.type for b in blocks]
+        assert types == ["plain", "spacer", "plain"]
+        assert blocks[2].content == "BELOW"
+        assert ":::" not in blocks[2].content
+
+    def test_spacer_without_close_still_works(self):
+        # Regression guard: the void form without ::: must keep working.
+        content = "ABOVE\n::: spacer 2\nBELOW"
+        blocks = parse_layout(content)
+
+        types = [b.type for b in blocks]
+        assert types == ["plain", "spacer", "plain"]
+        assert blocks[2].content == "BELOW"
+
+    def test_close_not_consumed_when_not_following_void(self):
+        # A bare ::: that does not follow a void directive is untouched
+        # (here it follows a plain paragraph and remains stray as before).
+        content = "JUST_TEXT\n:::\nMORE"
+        blocks = parse_layout(content)
+
+        assert blocks[0].type == "plain"
+        assert ":::" in blocks[0].content
+
+
 class TestCodeFenceNotParsedAsHeading:
     """Bug fix: # comments inside fenced code blocks must not render as H1."""
 

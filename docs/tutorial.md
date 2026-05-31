@@ -343,14 +343,12 @@ Key takeaway goes here.
 **Horizontal Dividers** - Separate sections:
 ```markdown
 ::: divider double
-:::
 ```
 Styles: `single`, `double`, `thick`, `dashed`
 
 **Vertical Spacing** - Control whitespace:
 ```markdown
 ::: spacer 2
-:::
 ```
 
 ### Text Formatting
@@ -481,10 +479,13 @@ Use `::: spacer` to add vertical space between elements:
 Content above
 
 ::: spacer 2
-:::
 
 Content below (with 2 lines of space)
 ```
+
+`spacer` and `divider` are *void* directives: they stand on their own line and
+take no body, so they need no closing `:::`. A trailing `:::` is tolerated for
+convenience but is unnecessary.
 
 ### Bordered Panels
 
@@ -506,14 +507,12 @@ Use `::: divider` to add horizontal rules between sections:
 
 ```markdown
 ::: divider
-:::
 ```
 
 Available styles: `single` (default), `double`, `thick`, `dashed`:
 
 ```markdown
 ::: divider double
-:::
 ```
 
 ### Nested Layout Blocks
@@ -535,6 +534,11 @@ Layout blocks can be nested inside columns:
 :::
 :::
 ```
+
+Nesting works in one direction only: a layout div (`::: columns`, `::: column`,
+`::: center`, `::: right`) may contain a `::: box`, but a **`::: box` body is
+plain Markdown** (text, lists, tables, code, inline styling). Fenced divs placed
+*inside* a box are not parsed and render as literal `:::` text.
 
 ## Incremental Lists
 

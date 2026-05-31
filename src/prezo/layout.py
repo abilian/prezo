@@ -393,7 +393,7 @@ def parse_layout(content: str) -> list[LayoutBlock]:
             if block_type in SELF_CLOSING_TYPES:
                 block = _create_block(block_type, "", quoted_arg, unquoted_arg)
                 blocks.append(block)
-                i += 1
+                i = _skip_redundant_close(lines, i + 1)
                 continue
 
             # Find matching close and nested content
@@ -422,6 +422,29 @@ def parse_layout(content: str) -> list[LayoutBlock]:
                 blocks.append(LayoutBlock(type="plain", content=plain_content))
 
     return blocks
+
+
+def _skip_redundant_close(lines: list[str], start: int) -> int:
+    """Skip a redundant closing ::: that follows a void directive.
+
+    Void directives (spacer, divider) need no closing marker, but authors add
+    one by analogy with container divs. Consume it (and any intervening blank
+    lines) so it does not leak as literal text.
+
+    Args:
+        lines: All lines of content.
+        start: Index just past the void directive.
+
+    Returns:
+        The index to resume parsing from.
+
+    """
+    j = start
+    while j < len(lines) and lines[j].strip() == "":
+        j += 1
+    if j < len(lines) and CLOSE_PATTERN.match(lines[j]):
+        return j + 1
+    return start
 
 
 def _create_block(
