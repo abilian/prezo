@@ -10,6 +10,7 @@ from rich.panel import Panel
 from rich.style import Style
 from rich.text import Text
 
+from prezo.emoji import replace_emoji
 from prezo.layout import (
     has_layout_blocks,
     parse_layout,
@@ -83,6 +84,7 @@ def render_slide_to_svg(
     width: int = 80,
     height: int = 24,
     chrome: bool = True,
+    emoji: bool = True,
 ) -> str:
     """Render a single slide to SVG using Rich console.
 
@@ -94,11 +96,15 @@ def render_slide_to_svg(
         width: Console width in characters
         height: Console height in lines
         chrome: If True, include window decorations; if False, plain SVG for printing
+        emoji: If False, rewrite emoji to ASCII markers (matches TUI --no-emoji)
 
     Returns:
         SVG string of the rendered slide
 
     """
+    if not emoji:
+        content = replace_emoji(content)
+
     theme = get_theme(theme_name)
 
     # Create a console that records output (file=StringIO suppresses terminal output)

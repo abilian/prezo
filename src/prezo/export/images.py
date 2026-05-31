@@ -29,6 +29,7 @@ def export_slide_to_image(
     height: int = 24,
     chrome: bool = True,
     scale: float = 1.0,
+    emoji: bool = True,
 ) -> Path:
     """Export a single slide to PNG or SVG.
 
@@ -43,6 +44,7 @@ def export_slide_to_image(
         height: Console height in lines.
         chrome: If True, include window decorations.
         scale: Scale factor for PNG output (e.g., 2.0 for 2x resolution).
+        emoji: If False, rewrite emoji to ASCII markers (matches TUI --no-emoji).
 
     Returns:
         Path to the created image file.
@@ -60,6 +62,7 @@ def export_slide_to_image(
         width=width,
         height=height,
         chrome=chrome,
+        emoji=emoji,
     )
 
     if output_format == "svg":
@@ -105,6 +108,7 @@ def export_to_images(
     chrome: bool = True,
     slide_num: int | None = None,
     scale: float = 2.0,
+    emoji: bool = True,
 ) -> list[Path]:
     """Export presentation slides to images.
 
@@ -118,6 +122,7 @@ def export_to_images(
         chrome: If True, include window decorations.
         slide_num: If set, export only this slide (1-indexed).
         scale: Scale factor for PNG output (default 2.0 for higher resolution).
+        emoji: If False, rewrite emoji to ASCII markers (matches TUI --no-emoji).
 
     Returns:
         List of paths to the created image files.
@@ -167,6 +172,7 @@ def export_to_images(
             height=height,
             chrome=chrome,
             scale=scale,
+            emoji=emoji,
         )
         return [result_path]
 
@@ -199,6 +205,7 @@ def export_to_images(
             height=height,
             chrome=chrome,
             scale=scale,
+            emoji=emoji,
         )
         exported_paths.append(result_path)
 
@@ -216,6 +223,7 @@ def run_image_export(
     chrome: bool = True,
     slide_num: int | None = None,
     scale: float = 2.0,
+    emoji: bool = True,
 ) -> int:
     """Run PNG/SVG export from command line.
 
@@ -229,6 +237,7 @@ def run_image_export(
         chrome: If True, include window decorations.
         slide_num: If set, export only this slide (1-indexed).
         scale: Scale factor for PNG output (default 2.0 for higher resolution).
+        emoji: If False, rewrite emoji to ASCII markers (matches TUI --no-emoji).
 
     Returns:
         Exit code (0 for success).
@@ -248,6 +257,7 @@ def run_image_export(
             chrome=chrome,
             slide_num=slide_num,
             scale=scale,
+            emoji=emoji,
         )
         if len(exported_paths) == 1:
             print(f"Exported to {exported_paths[0]}")

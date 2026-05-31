@@ -25,6 +25,7 @@ from textual.reactive import reactive
 from textual.widgets import Footer, Header, Markdown, Static
 
 from .config import CONFIG_DIR, Config, SessionState, get_config, get_state, save_state
+from .emoji import replace_emoji
 from .images.ascii import HalfBlockRenderer
 from .images.chafa import chafa_available, render_with_chafa
 from .images.processor import resolve_image_path
@@ -889,6 +890,10 @@ class PrezoApp(App):
 
         # Use cleaned content (bg images already removed by parser)
         content = slide.content.strip()
+
+        # Rewrite emoji to ASCII markers on terminals that misrender them
+        if not self.config.display.emoji:
+            content = replace_emoji(content)
 
         # Apply incremental filtering if enabled
         if self._is_incremental_enabled() and self.reveal_index >= 0:

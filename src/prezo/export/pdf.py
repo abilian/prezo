@@ -369,6 +369,7 @@ def export_to_pdf(
     height: int = 24,
     chrome: bool = True,
     pdf_backend: str = "auto",
+    emoji: bool = True,
 ) -> Path:
     """Export presentation to PDF matching TUI appearance.
 
@@ -380,6 +381,7 @@ def export_to_pdf(
         height: Console height in lines
         chrome: If True, include window decorations; if False, plain output for printing
         pdf_backend: Backend for PDF conversion ("auto", "inkscape", "cairosvg")
+        emoji: If False, rewrite emoji to ASCII markers (matches TUI --no-emoji).
 
     Returns:
         Path to the created PDF file.
@@ -422,6 +424,7 @@ def export_to_pdf(
                 width=width,
                 height=height,
                 chrome=chrome,
+                emoji=emoji,
             )
 
             svg_file = tmpdir / f"slide_{i:04d}.svg"
@@ -441,6 +444,7 @@ def run_export(
     height: int = 24,
     chrome: bool = True,
     pdf_backend: str = "auto",
+    emoji: bool = True,
 ) -> int:
     """Run PDF export from command line.
 
@@ -452,6 +456,7 @@ def run_export(
         height: Console height in lines
         chrome: If True, include window decorations; if False, plain output for printing
         pdf_backend: Backend for PDF conversion ("auto", "inkscape", "cairosvg")
+        emoji: If False, rewrite emoji to ASCII markers (matches TUI --no-emoji).
 
     Returns:
         Exit code (0 for success)
@@ -469,6 +474,7 @@ def run_export(
             height=height,
             chrome=chrome,
             pdf_backend=pdf_backend,
+            emoji=emoji,
         )
         print(f"Exported to {result_path}")
         return EXIT_SUCCESS

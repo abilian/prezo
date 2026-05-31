@@ -67,6 +67,7 @@ prezo presentation.md --theme dracula    # Set theme
 prezo presentation.md --no-watch         # Disable auto-reload
 prezo presentation.md -I                 # Incremental lists
 prezo presentation.md --image-mode kitty # Image mode
+prezo presentation.md --no-emoji         # ASCII markers ([V]/[!]/[X]) if emoji misrender
 prezo presentation.md --time-budget 30   # Pacing indicator (30 min)
 prezo presentation.md --resume           # Resume last session
 
@@ -207,6 +208,7 @@ Config file: `~/.config/prezo/config.toml`
 ```toml
 [display]
 theme = "dark"
+emoji = true        # false: rewrite emoji to ASCII markers ([V]/[!]/[X])
 show_clock = false
 show_elapsed = true
 
