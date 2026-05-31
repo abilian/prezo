@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import html as html_mod
 from pathlib import Path
 
+from prezo.emoji import replace_emoji
+from prezo.layout import LayoutBlock, has_layout_blocks, parse_layout
 from prezo.parser import clean_marp_directives, extract_notes, parse_presentation
 from prezo.themes import get_theme
 
@@ -141,6 +144,40 @@ HTML_TEMPLATE = """\
             flex: 1;
             min-width: 0;
         }}
+        .box {{
+            border: 1px solid {border};
+            border-radius: 6px;
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+        }}
+        .box-title {{
+            font-weight: bold;
+            color: {primary};
+            margin-bottom: 0.5rem;
+        }}
+        .center {{
+            text-align: center;
+        }}
+        .right {{
+            text-align: right;
+        }}
+        .spacer {{
+            display: block;
+        }}
+        hr {{
+            border: none;
+            border-top: 1px solid {border};
+            margin: 1rem 0;
+        }}
+        hr.divider-double {{
+            border-top: 3px double {border};
+        }}
+        hr.divider-thick {{
+            border-top: 3px solid {border};
+        }}
+        hr.divider-dashed {{
+            border-top: 1px dashed {border};
+        }}
         .notes {{
             margin-top: 2rem;
             padding: 1rem;
@@ -191,8 +228,76 @@ NOTES_TEMPLATE = """\
 """
 
 
+def _markdown_fragment_to_html(content: str) -> str:
+    """Render a plain-markdown fragment to HTML (no fenced-div handling).
+
+    Args:
+        content: Markdown content without ::: fenced divs.
+
+    Returns:
+        HTML string.
+
+    """
+    content = content.strip()
+    if not content:
+        return ""
+
+    try:
+        import markdown  # noqa: PLC0415
+
+        return markdown.markdown(
+            content,
+            extensions=["tables", "fenced_code", "codehilite"],
+        )
+    except ImportError:
+        # Fallback: escape and wrap in paragraphs (no markdown rendering).
+        escaped = html_mod.escape(content)
+        return "<p>" + escaped.replace("\n\n", "</p><p>") + "</p>"
+
+
+def _block_to_html(block: LayoutBlock) -> str:
+    """Render a single layout block to HTML.
+
+    Args:
+        block: The parsed layout block.
+
+    Returns:
+        HTML string for the block.
+
+    """
+    if block.type == "columns":
+        # Column bodies may themselves contain fenced divs (e.g. a nested
+        # ::: box), so render them recursively — mirroring the TUI renderer,
+        # which re-parses each column's content.
+        cols = "\n".join(
+            f"<div>{render_slide_to_html(child.content)}</div>"
+            for child in block.children
+        )
+        return f'<div class="columns">\n{cols}\n</div>'
+    if block.type == "box":
+        title_html = (
+            f'<div class="box-title">{html_mod.escape(block.title)}</div>'
+            if block.title
+            else ""
+        )
+        return f'<div class="box">{title_html}{_markdown_fragment_to_html(block.content)}</div>'
+    if block.type in ("center", "right"):
+        return f'<div class="{block.type}">{_markdown_fragment_to_html(block.content)}</div>'
+    if block.type == "spacer":
+        lines = block.width_percent or 1
+        return f'<div class="spacer" style="height: {lines}em"></div>'
+    if block.type == "divider":
+        return f'<hr class="divider-{block.style or "single"}">'
+    # plain / column / unknown: render the markdown content directly.
+    return _markdown_fragment_to_html(block.content)
+
+
 def render_slide_to_html(content: str) -> str:
-    """Convert markdown content to basic HTML.
+    """Convert markdown slide content (incl. fenced divs) to HTML.
+
+    Headings, lists, tables and code are rendered via Markdown; Pandoc-style
+    fenced divs (``::: columns``, ``::: box``, ``::: center`` …) are routed to
+    matching HTML elements so the output mirrors the TUI renderer.
 
     Args:
         content: Markdown content of the slide.
@@ -201,23 +306,11 @@ def render_slide_to_html(content: str) -> str:
         HTML string for the slide content.
 
     """
-    try:
-        import markdown  # noqa: PLC0415
+    if not has_layout_blocks(content):
+        return _markdown_fragment_to_html(content)
 
-        html = markdown.markdown(
-            content,
-            extensions=["tables", "fenced_code", "codehilite"],
-        )
-    except ImportError:
-        # Fallback: basic markdown-to-html conversion
-        import html as html_mod  # noqa: PLC0415
-
-        html = html_mod.escape(content)
-        # Basic transformations
-        html = html.replace("\n\n", "</p><p>")
-        html = f"<p>{html}</p>"
-
-    return html
+    parts = [_block_to_html(block) for block in parse_layout(content)]
+    return "\n".join(part for part in parts if part)
 
 
 def export_to_html(
@@ -226,6 +319,7 @@ def export_to_html(
     *,
     theme: str = "dark",
     include_notes: bool = False,
+    emoji: bool = True,
 ) -> Path:
     """Export presentation to HTML.
 
@@ -234,6 +328,7 @@ def export_to_html(
         output: Path for the output HTML file.
         theme: Theme to use for styling.
         include_notes: Whether to include presenter notes.
+        emoji: If False, rewrite emoji to ASCII markers (matches TUI --no-emoji).
 
     Returns:
         Path to the created HTML file.
@@ -266,12 +361,15 @@ def export_to_html(
         cleaned_content = clean_marp_directives(
             slide_content, keep_divs=True, keep_images=True
         )
+        if not emoji:
+            cleaned_content = replace_emoji(cleaned_content)
         content_html = render_slide_to_html(cleaned_content)
 
         # Handle notes
         notes_html = ""
         if include_notes and slide.notes:
-            notes_content = render_slide_to_html(slide.notes)
+            notes = replace_emoji(slide.notes) if not emoji else slide.notes
+            notes_content = render_slide_to_html(notes)
             notes_html = NOTES_TEMPLATE.format(notes_content=notes_content)
 
         slide_html = SLIDE_TEMPLATE.format(
@@ -310,6 +408,7 @@ def run_html_export(
     *,
     theme: str = "light",
     include_notes: bool = False,
+    emoji: bool = True,
 ) -> int:
     """Run HTML export from command line.
 
@@ -318,6 +417,7 @@ def run_html_export(
         output: Optional path for the output HTML (string).
         theme: Theme to use for styling.
         include_notes: Whether to include presenter notes.
+        emoji: If False, rewrite emoji to ASCII markers (matches TUI --no-emoji).
 
     Returns:
         Exit code (0 for success).
@@ -334,6 +434,7 @@ def run_html_export(
             output_path,
             theme=theme,
             include_notes=include_notes,
+            emoji=emoji,
         )
         print(f"Exported to {result_path}")
         return EXIT_SUCCESS

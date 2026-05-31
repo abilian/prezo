@@ -4,6 +4,22 @@ All notable changes to Prezo are documented in this file.
 
 Starting with version 2026.1.1, Prezo uses [CalVer](https://calver.org/) versioning (YYYY.M.patch).
 
+## [2026.5.1] - 2026-05-31
+
+### Added
+- **`--no-emoji` flag / `[display] emoji` option** - Rewrites emoji to fixed-width ASCII markers (`✅`→`[V]`, `⚠️`→`[!]`, `❌`→`[X]`, `❓`→`[?]`, …; decorative emoji are stripped). Terminals disagree with Rich on emoji cell width — some clip wide glyphs, others miscount VS16 sequences like `⚠️` and break box/table borders. Since no static width is correct for every terminal+font, this guarantees alignment by emitting only width-1 characters. Applies to the TUI and to HTML/PNG/SVG/PDF export (keeping exports a faithful image of the console). Arrows, box-drawing, and CJK text are left untouched.
+
+### Fixed
+- **Stray `:::` after `spacer`/`divider`** - `::: spacer` and `::: divider` are void directives that take no body. A redundant closing `:::` (which the docs used to show, and which appears in many decks) is now consumed instead of leaking as literal text glued to the following line.
+- **HTML export rendered raw Markdown** - `--export html` now renders headings, lists, tables, code, and Pandoc-style fenced divs (`::: columns`, `::: box`, `::: center`, `::: right`, `::: divider`, `::: spacer`) into proper HTML elements. Previously the output dumped unrendered source (e.g. `<p># Title</p>`, `<p>::: columns</p>`) because the `markdown` library was never a runtime dependency and fenced divs were never routed through a renderer.
+
+### Changed
+- **`markdown` is now a runtime dependency** - required for faithful HTML export (it was previously only referenced optionally and never installed).
+
+### Documentation
+- **Void directives** - Tutorial now shows `::: spacer` / `::: divider` without a closing `:::` and notes the trailing marker is optional.
+- **Box nesting** - Documented that `::: box` bodies are plain Markdown: a layout div may contain a box, but a box cannot contain nested fenced divs.
+
 ## [2026.4.2] - 2026-04-23
 
 ### Fixed

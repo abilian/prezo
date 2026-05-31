@@ -176,6 +176,12 @@ def main() -> None:
         help="Image rendering mode (auto, kitty, sixel, iterm, ascii, none)",
     )
     parser.add_argument(
+        "--no-emoji",
+        action="store_true",
+        help="Rewrite emoji to ASCII markers ([V]/[!]/[X]) for terminals that "
+        "misrender them (fixes clipped emoji and broken box/table borders)",
+    )
+    parser.add_argument(
         "-I",
         "--incremental",
         action="store_true",
@@ -209,6 +215,10 @@ def main() -> None:
     if args.image_mode:
         config.images.mode = args.image_mode
 
+    # Override emoji handling if requested
+    if args.no_emoji:
+        config.display.emoji = False
+
     if args.export:
         if not args.file:
             _error(
@@ -230,6 +240,7 @@ def main() -> None:
                     str(source_path),
                     args.output,
                     theme=args.theme,
+                    emoji=not args.no_emoji,
                 ),
             )
         elif args.export in ("png", "svg"):
@@ -246,6 +257,7 @@ def main() -> None:
                     chrome=not args.no_chrome,
                     slide_num=args.slide,
                     scale=args.scale,
+                    emoji=not args.no_emoji,
                 ),
             )
         else:
@@ -260,6 +272,7 @@ def main() -> None:
                     height=height,
                     chrome=not args.no_chrome,
                     pdf_backend=args.pdf_backend,
+                    emoji=not args.no_emoji,
                 ),
             )
     else:

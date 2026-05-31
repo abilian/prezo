@@ -168,6 +168,60 @@ class TestRenderSlideToHtml:
         assert "print" in html
 
 
+class TestRenderSlideToHtmlRendersMarkup:
+    """Bug fix: HTML export must render headings and fenced divs, not dump raw source."""
+
+    def test_heading_becomes_h1(self):
+        html = render_slide_to_html("# Slide Title")
+        assert "<h1>" in html
+        # The raw "# Slide Title" must NOT survive as literal text.
+        assert "<p># Slide Title</p>" not in html
+        assert "# Slide Title" not in html
+
+    def test_columns_become_div(self):
+        content = "::: columns\n::: column\nLeft\n:::\n::: column\nRight\n:::\n:::"
+        html = render_slide_to_html(content)
+        assert '<div class="columns">' in html
+        # The ::: markers must not leak as literal text.
+        assert "::: column" not in html
+        assert "Left" in html
+        assert "Right" in html
+
+    def test_box_becomes_div(self):
+        content = '::: box "Title"\nBoxed content\n:::'
+        html = render_slide_to_html(content)
+        assert '<div class="box">' in html
+        assert "Title" in html
+        assert "Boxed content" in html
+        assert "::: box" not in html
+
+    def test_divider_becomes_hr(self):
+        html = render_slide_to_html("::: divider")
+        assert "<hr" in html
+        assert "::: divider" not in html
+
+    def test_lists_render(self):
+        html = render_slide_to_html("- one\n- two")
+        assert "<ul>" in html
+        assert "<li>" in html
+
+    def test_box_nested_in_column_renders(self):
+        # The TUI re-parses column bodies, so a box inside a column must
+        # become a real box div in HTML too (not literal ::: text).
+        content = (
+            "::: columns\n"
+            '::: column\n::: box "Pro"\n- Fast\n:::\n:::\n'
+            "::: column\nPlain\n:::\n"
+            ":::"
+        )
+        html = render_slide_to_html(content)
+        assert '<div class="columns">' in html
+        assert '<div class="box">' in html
+        assert "Pro" in html
+        assert "::: box" not in html
+        assert "::: column" not in html
+
+
 class TestExportToHtml:
     """Tests for export_to_html function."""
 
@@ -247,6 +301,26 @@ class TestExportToHtml:
 
         html = output.read_text()
         assert "<title>my_slides</title>" in html
+
+    def test_emoji_kept_by_default(self, tmp_path: Path):
+        source = tmp_path / "test.md"
+        source.write_text("# Status ✅")
+        output = tmp_path / "test.html"
+
+        export_to_html(source, output)
+
+        assert "✅" in output.read_text()
+
+    def test_no_emoji_rewrites_to_marker(self, tmp_path: Path):
+        source = tmp_path / "test.md"
+        source.write_text("# Status ✅")
+        output = tmp_path / "test.html"
+
+        export_to_html(source, output, emoji=False)
+
+        html = output.read_text()
+        assert "✅" not in html
+        assert "[V]" in html
 
     def test_empty_presentation_fails(self, tmp_path: Path):
         source = tmp_path / "empty.md"
