@@ -39,7 +39,11 @@ from rich.markdown import Markdown
 from rich.measure import Measurement
 from rich.panel import Panel
 from rich.rule import Rule
+from rich.segment import Segment
+from rich.style import Style
 from rich.text import Text
+
+from prezo.emoji import MARKER_STYLES
 
 if TYPE_CHECKING:
     from rich.console import RenderableType
@@ -1108,3 +1112,63 @@ def _visible_length(text: str) -> int:
     # Strip ANSI codes first, then calculate cell width
     clean_text = _ANSI_PATTERN.sub("", text)
     return cell_len(clean_text)
+
+
+# -----------------------------------------------------------------------------
+# Emoji-marker colouring
+# -----------------------------------------------------------------------------
+
+# Matches any ASCII fallback marker (e.g. ``[V]``) produced by replace_emoji.
+_MARKER_PATTERN = re.compile(
+    "(" + "|".join(re.escape(marker) for marker in MARKER_STYLES) + ")"
+)
+
+
+class _MarkerColorizer:
+    """Renderable wrapper that tints emoji-fallback markers after rendering.
+
+    Operates on the final segment stream, so markers are coloured uniformly
+    wherever they appear (paragraphs, list items, tables, box titles) without
+    needing to understand Markdown structure.
+    """
+
+    def __init__(self, renderable: RenderableType) -> None:
+        """Wrap a renderable so its ``[V]``/``[!]``/… markers are coloured."""
+        self.renderable = renderable
+
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> RenderResult:
+        """Re-render the wrapped renderable, recolouring marker tokens."""
+        for segment in console.render(self.renderable, options):
+            yield from _recolor_segment(segment)
+
+
+def _recolor_segment(segment: Segment) -> RenderResult:
+    """Split a segment on markers, applying each marker's colour."""
+    text, style, control = segment.text, segment.style, segment.control
+    if control or "[" not in text:
+        yield segment
+        return
+    for part in _MARKER_PATTERN.split(text):
+        if not part:
+            continue
+        if part in MARKER_STYLES:
+            marker_style = Style(color=MARKER_STYLES[part], bold=True)
+            yield Segment(part, (style or Style()) + marker_style, control)
+        else:
+            yield Segment(part, style, control)
+
+
+def colorize_markers(renderable: RenderableType) -> RenderableType:
+    """Return a renderable that colours emoji-fallback markers (``[V]`` …).
+
+    Args:
+        renderable: Any Rich renderable that may contain ASCII markers.
+
+    Returns:
+        A wrapper renderable; marker tokens are tinted, everything else is
+        passed through unchanged.
+
+    """
+    return _MarkerColorizer(renderable)

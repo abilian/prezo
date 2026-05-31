@@ -321,6 +321,8 @@ class TestExportToHtml:
         html = output.read_text()
         assert "✅" not in html
         assert "[V]" in html
+        # The marker is wrapped in a coloured span.
+        assert 'style="color:green;font-weight:bold">[V]</span>' in html
 
     def test_empty_presentation_fails(self, tmp_path: Path):
         source = tmp_path / "empty.md"

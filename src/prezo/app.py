@@ -522,6 +522,7 @@ class PrezoApp(App):
         super().__init__()
         self.config = config or get_config()
         self.state = get_state()
+        self.emoji_enabled = self.config.display.emoji
 
         # Register custom themes from config
         register_custom_themes(self.config)

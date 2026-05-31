@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import html as html_mod
+import re
 from pathlib import Path
 
-from prezo.emoji import replace_emoji
+from prezo.emoji import MARKER_STYLES, replace_emoji
 from prezo.layout import LayoutBlock, has_layout_blocks, parse_layout
 from prezo.parser import clean_marp_directives, extract_notes, parse_presentation
 from prezo.themes import get_theme
@@ -292,6 +293,23 @@ def _block_to_html(block: LayoutBlock) -> str:
     return _markdown_fragment_to_html(block.content)
 
 
+# Matches any ASCII fallback marker (e.g. ``[V]``) produced by replace_emoji.
+_HTML_MARKER_PATTERN = re.compile(
+    "(" + "|".join(re.escape(marker) for marker in MARKER_STYLES) + ")"
+)
+
+
+def _colorize_html_markers(html: str) -> str:
+    """Wrap emoji-fallback markers (``[V]`` …) in colour spans."""
+
+    def repl(match: re.Match[str]) -> str:
+        marker = match.group(0)
+        color = MARKER_STYLES[marker]
+        return f'<span style="color:{color};font-weight:bold">{marker}</span>'
+
+    return _HTML_MARKER_PATTERN.sub(repl, html)
+
+
 def render_slide_to_html(content: str) -> str:
     """Convert markdown slide content (incl. fenced divs) to HTML.
 
@@ -364,12 +382,16 @@ def export_to_html(
         if not emoji:
             cleaned_content = replace_emoji(cleaned_content)
         content_html = render_slide_to_html(cleaned_content)
+        if not emoji:
+            content_html = _colorize_html_markers(content_html)
 
         # Handle notes
         notes_html = ""
         if include_notes and slide.notes:
             notes = replace_emoji(slide.notes) if not emoji else slide.notes
             notes_content = render_slide_to_html(notes)
+            if not emoji:
+                notes_content = _colorize_html_markers(notes_content)
             notes_html = NOTES_TEMPLATE.format(notes_content=notes_content)
 
         slide_html = SLIDE_TEMPLATE.format(

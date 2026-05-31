@@ -5,6 +5,7 @@ from __future__ import annotations
 from textual.widgets import Static
 
 from prezo.layout import (
+    colorize_markers,
     has_layout_blocks,
     parse_layout,
     render_layout,
@@ -107,4 +108,17 @@ class SlideContent(Static):
                 surface_color=surface_color,
             )
 
+        # When emoji are rewritten to ASCII markers, tint them to keep the cue.
+        if self._emoji_disabled():
+            renderable = colorize_markers(renderable)
+
         super().update(renderable)
+
+    def _emoji_disabled(self) -> bool:
+        """Return True if the app is rendering emoji as ASCII markers."""
+        try:
+            if self.is_attached:
+                return not getattr(self.app, "emoji_enabled", True)
+        except Exception:
+            pass
+        return False

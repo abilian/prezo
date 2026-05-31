@@ -858,6 +858,62 @@ Content 2
 # ---------------------------------------------------------------------------
 
 
+class TestColorizeMarkers:
+    """Emoji-fallback markers ([V]/[!]/[X]) are tinted after rendering."""
+
+    def _segments(self, renderable):
+        from rich.console import Console
+
+        console = Console(width=40, color_system="truecolor")
+        return list(console.render(renderable, console.options))
+
+    def test_marker_segment_is_colored(self):
+        from rich.text import Text
+
+        from prezo.layout import colorize_markers
+
+        segs = self._segments(colorize_markers(Text("ok [V] done")))
+        marker = next(s for s in segs if s.text == "[V]")
+        assert marker.style is not None
+        assert marker.style.color is not None
+        assert marker.style.color.name == "green"
+        assert marker.style.bold
+
+    def test_distinct_colors_per_marker(self):
+        from rich.text import Text
+
+        from prezo.layout import colorize_markers
+
+        segs = self._segments(colorize_markers(Text("[V] [!] [X]")))
+        colors = {
+            s.text: s.style.color.name for s in segs if s.text in ("[V]", "[!]", "[X]")
+        }
+        assert colors == {"[V]": "green", "[!]": "yellow", "[X]": "red"}
+
+    def test_non_marker_text_untouched(self):
+        from rich.text import Text
+
+        from prezo.layout import colorize_markers
+
+        segs = self._segments(colorize_markers(Text("plain text only")))
+        # No segment should have been given a marker colour.
+        assert all(
+            s.style is None or s.style.color is None or s.style.color.name != "green"
+            for s in segs
+        )
+
+    def test_works_through_markdown_tables(self):
+        # The colorizer operates on the final segment stream, so it reaches
+        # markers inside Markdown-rendered tables too.
+        from prezo.layout import colorize_markers, render_styled_markdown
+
+        renderable = render_styled_markdown("| A | B |\n|---|---|\n| [V] | [X] |")
+        segs = self._segments(colorize_markers(renderable))
+        named = {s.text: s.style.color.name for s in segs if s.text in ("[V]", "[X]")}
+        assert named.get("[V]") == "green"
+        assert named.get("[X]") == "red"
+
+
 class TestVoidDirectiveRedundantTerminator:
     """Bug fix: a redundant closing ::: after a void directive must not leak.
 

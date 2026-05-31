@@ -50,6 +50,18 @@ EMOJI_MARKERS: dict[str, str] = {
     "\U0001f525": "[*]",  # 🔥 fire
 }
 
+# Colour (terminal palette name) for each marker, used when rendering so the
+# ASCII fallback keeps the visual cue the emoji carried. Palette names adapt to
+# the active terminal/theme rather than being hard-coded RGB.
+MARKER_STYLES: dict[str, str] = {
+    "[V]": "green",
+    "[X]": "red",
+    "[!]": "yellow",
+    "[?]": "cyan",
+    "[i]": "blue",
+    "[*]": "magenta",
+}
+
 # Modifiers that should be dropped (they only tweak presentation, never width
 # in a meaningful way once the base glyph is handled): variation selectors,
 # skin-tone modifiers, zero-width joiner, and the keycap combining mark.

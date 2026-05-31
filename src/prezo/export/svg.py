@@ -12,6 +12,7 @@ from rich.text import Text
 
 from prezo.emoji import replace_emoji
 from prezo.layout import (
+    colorize_markers,
     has_layout_blocks,
     parse_layout,
     render_layout,
@@ -135,6 +136,10 @@ def render_slide_to_svg(
             text_color=theme.text,
             surface_color=theme.surface,
         )
+
+    # When emoji are rewritten to ASCII markers, tint them to keep the cue.
+    if not emoji:
+        slide_content = colorize_markers(slide_content)
 
     # Create a panel with the slide content
     # Panel takes full height minus status bar line
