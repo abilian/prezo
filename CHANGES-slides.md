@@ -26,7 +26,7 @@ A journey through every release, from today back to day one.
 ::: column
 ::: box "Terminal-Safe Emoji"
 - `--no-emoji` rewrites emoji to aligned ASCII markers
-- `✅`→`[V]`, `⚠️`→`/!\`, `❌`→`[X]` — coloured, never clipped
+- `[V]`, `/!\`, `[X]` — coloured, never clipped
 - No more broken box or table borders
 :::
 :::
