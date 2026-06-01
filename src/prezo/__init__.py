@@ -178,7 +178,7 @@ def main() -> None:
     parser.add_argument(
         "--no-emoji",
         action="store_true",
-        help="Rewrite emoji to ASCII markers ([V]/[!]/[X]) for terminals that "
+        help="Rewrite emoji to ASCII markers ([V] /!\\ [X] ...) for terminals that "
         "misrender them (fixes clipped emoji and broken box/table borders)",
     )
     parser.add_argument(

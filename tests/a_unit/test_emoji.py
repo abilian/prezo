@@ -14,8 +14,8 @@ class TestReplaceEmojiMarkers:
         assert replace_emoji("done ✓") == "done [V]"
 
     def test_warning_becomes_bang(self):
-        assert replace_emoji("⚠️ careful") == "[!] careful"
-        assert replace_emoji("⚠ careful") == "[!] careful"  # without VS16
+        assert replace_emoji("⚠️ careful") == "/!\\ careful"
+        assert replace_emoji("⚠ careful") == "/!\\ careful"  # without VS16
 
     def test_cross_becomes_x(self):
         assert replace_emoji("nope ❌") == "nope [X]"
@@ -24,7 +24,7 @@ class TestReplaceEmojiMarkers:
     def test_markers_are_width_one_ascii(self):
         # Every character in the result must be a single-cell ASCII char.
         result = replace_emoji("✅ ⚠️ ❌")
-        assert result == "[V] [!] [X]"
+        assert result == "[V] /!\\ [X]"
         assert all(ord(c) < 128 for c in result)
 
 

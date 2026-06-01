@@ -334,6 +334,46 @@ More content.
             # Third slide has HTML-style notes
             assert "HTML style notes" in app.presentation.slides[2].notes
 
+    @pytest.fixture
+    def presentation_with_long_notes(self, tmp_path):
+        """Create a presentation whose notes overflow the panel."""
+        pres = tmp_path / "long_notes.md"
+        long_notes = "\n\n".join(f"Note line {i} " + "word " * 8 for i in range(60))
+        pres.write_text(f"# Slide\n\nBody\n\n???\n{long_notes}\n")
+        return pres
+
+    async def test_long_notes_are_scrollable(self, presentation_with_long_notes):
+        """Long presenter notes overflow into a scrollable container."""
+        from textual.containers import VerticalScroll
+
+        app = PrezoApp(presentation_with_long_notes)
+        async with app.run_test(size=(100, 24)) as pilot:
+            await pilot.pause()
+            await pilot.press("p")  # show notes
+            await pilot.pause()
+
+            scroll = app.query_one("#notes-scroll", VerticalScroll)
+            assert scroll.max_scroll_y > 0  # content overflows -> scrollable
+
+    async def test_pagedown_scrolls_notes(self, presentation_with_long_notes):
+        """PageUp/PageDown scroll the notes panel while it is shown."""
+        from textual.containers import VerticalScroll
+
+        app = PrezoApp(presentation_with_long_notes)
+        async with app.run_test(size=(100, 24)) as pilot:
+            await pilot.pause()
+            await pilot.press("p")
+            await pilot.pause()
+
+            scroll = app.query_one("#notes-scroll", VerticalScroll)
+            await pilot.press("pagedown")
+            await pilot.pause()
+            assert scroll.scroll_offset.y > 0
+
+            await pilot.press("pageup")
+            await pilot.pause()
+            assert scroll.scroll_offset.y == 0
+
 
 class TestPrezoAppWithImages:
     """Tests for presentations with images."""

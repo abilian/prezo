@@ -34,6 +34,7 @@ HELP_CONTENT = """\
 | Key | Action |
 |-----|--------|
 | **p** | Toggle presenter notes |
+| **PageUp** / **PageDown** | Scroll notes (when shown) |
 | **c** | Cycle clock/timer modes |
 | **s** | Start/stop timer |
 | **T** | Cycle through themes |

@@ -1133,7 +1133,7 @@ class _MarkerColorizer:
     """
 
     def __init__(self, renderable: RenderableType) -> None:
-        """Wrap a renderable so its ``[V]``/``[!]``/… markers are coloured."""
+        r"""Wrap a renderable so its ``[V]``, ``/!\``, … markers are coloured."""
         self.renderable = renderable
 
     def __rich_console__(
@@ -1147,7 +1147,7 @@ class _MarkerColorizer:
 def _recolor_segment(segment: Segment) -> RenderResult:
     """Split a segment on markers, applying each marker's colour."""
     text, style, control = segment.text, segment.style, segment.control
-    if control or "[" not in text:
+    if control or not _MARKER_PATTERN.search(text):
         yield segment
         return
     for part in _MARKER_PATTERN.split(text):

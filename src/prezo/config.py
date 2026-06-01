@@ -24,7 +24,7 @@ DEFAULT_CONFIG_TOML = """\
 
 [display]
 theme = "dark"                    # dark, light, dracula, solarized-dark, nord, gruvbox
-emoji = true                      # false: rewrite emoji to ASCII markers ([V]/[!]/[X]) for terminals that misrender them
+emoji = true                      # false: rewrite emoji to ASCII markers ([V] /!\\ [X] ...) for terminals that misrender them
 # syntax_theme = "monokai"        # Code block highlighting (future)
 # custom_css = "~/.config/prezo/custom.tcss"  # Path to custom Textual CSS
 

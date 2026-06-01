@@ -81,6 +81,7 @@ prezo <presentation.md>
 | **o** | Slide overview |
 | **t** | Table of contents |
 | **p** | Toggle notes |
+| **PageUp** / **PageDown** | Scroll notes (when shown) |
 | **c** | Toggle clock |
 | **s** | Start/stop timer |
 | **b** | Blackout screen |
@@ -449,8 +450,15 @@ class PrezoApp(App):
         margin-bottom: 1;
     }
 
+    #notes-scroll {
+        width: 100%;
+        height: 1fr;
+        overflow-y: auto;
+    }
+
     #notes-content {
         width: 100%;
+        height: auto;
     }
 
     #status-bar {
@@ -476,6 +484,8 @@ class PrezoApp(App):
         Binding("slash", "search", "Search", show=True),
         Binding("t", "show_toc", "TOC", show=True),
         Binding("p", "toggle_notes", "Notes", show=True),
+        Binding("pageup", "scroll_notes_up", "Notes ↑", show=False),
+        Binding("pagedown", "scroll_notes_down", "Notes ↓", show=False),
         Binding("c", "toggle_clock", "Clock", show=False),
         Binding("s", "toggle_timer", "Timer", show=False),
         Binding("S", "toggle_timer", "Timer", show=False),
@@ -567,7 +577,8 @@ class PrezoApp(App):
                             yield SlideContent("", id="slide-content")
                 with Vertical(id="notes-panel"):
                     yield Static("Notes", id="notes-title")
-                    yield Markdown("", id="notes-content")
+                    with VerticalScroll(id="notes-scroll"):
+                        yield Markdown("", id="notes-content")
             yield StatusBar(id="status-bar")
         yield Footer()
 
@@ -1209,6 +1220,16 @@ class PrezoApp(App):
     def action_toggle_notes(self) -> None:
         """Toggle the notes panel visibility."""
         self.notes_visible = not self.notes_visible
+
+    def action_scroll_notes_up(self) -> None:
+        """Scroll the presenter notes panel up (when visible)."""
+        if self.notes_visible:
+            self.query_one("#notes-scroll", VerticalScroll).scroll_page_up()
+
+    def action_scroll_notes_down(self) -> None:
+        """Scroll the presenter notes panel down (when visible)."""
+        if self.notes_visible:
+            self.query_one("#notes-scroll", VerticalScroll).scroll_page_down()
 
     def action_toggle_clock(self) -> None:
         """Cycle through clock display modes."""

@@ -7,14 +7,17 @@ Starting with version 2026.1.1, Prezo uses [CalVer](https://calver.org/) version
 ## [2026.5.1] - 2026-05-31
 
 ### Added
-- **`--no-emoji` flag / `[display] emoji` option** - Rewrites emoji to fixed-width ASCII markers (`✅`→`[V]`, `⚠️`→`[!]`, `❌`→`[X]`, `❓`→`[?]`, …; decorative emoji are stripped). Terminals disagree with Rich on emoji cell width — some clip wide glyphs, others miscount VS16 sequences like `⚠️` and break box/table borders. Since no static width is correct for every terminal+font, this guarantees alignment by emitting only width-1 characters. The markers keep a colour cue (`[V]` green, `[!]` yellow, `[X]` red, …) via post-render recolouring, so they stand out in the TUI, HTML, and PNG/SVG/PDF export. Applies everywhere (keeping exports a faithful image of the console); arrows, box-drawing, and CJK text are left untouched.
+- **`--no-emoji` flag / `[display] emoji` option** - Rewrites emoji to fixed-width ASCII markers (`✅`→`[V]`, `⚠️`→`/!\`, `❌`→`[X]`, `❓`→`[?]`, …; decorative emoji are stripped). Terminals disagree with Rich on emoji cell width — some clip wide glyphs, others miscount VS16 sequences like `⚠️` and break box/table borders. Since no static width is correct for every terminal+font, this guarantees alignment by emitting only width-1 characters. The markers keep a colour cue (`[V]` green, `/!\` yellow, `[X]` red, …) via post-render recolouring, so they stand out in the TUI, HTML, and PNG/SVG/PDF export. Applies everywhere (keeping exports a faithful image of the console); arrows, box-drawing, and CJK text are left untouched.
 
 ### Fixed
 - **Stray `:::` after `spacer`/`divider`** - `::: spacer` and `::: divider` are void directives that take no body. A redundant closing `:::` (which the docs used to show, and which appears in many decks) is now consumed instead of leaking as literal text glued to the following line.
 - **HTML export rendered raw Markdown** - `--export html` now renders headings, lists, tables, code, and Pandoc-style fenced divs (`::: columns`, `::: box`, `::: center`, `::: right`, `::: divider`, `::: spacer`) into proper HTML elements. Previously the output dumped unrendered source (e.g. `<p># Title</p>`, `<p>::: columns</p>`) because the `markdown` library was never a runtime dependency and fenced divs were never routed through a renderer.
+- **Presenter notes could not scroll** - Long presenter notes were clipped with no way to reach the overflow. The notes panel is now a scroll container (mouse wheel + scrollbar), and `PageUp`/`PageDown` scroll it from the keyboard while it's shown.
+- **Help panel opened on launch (some terminals)** - Pinned `textual-image < 0.13`. Version 0.13.x issues terminal escape queries at startup whose responses can leak into stdin on some terminals, where the stray `?` triggered the help binding so prezo opened with the help screen.
 
 ### Changed
 - **`markdown` is now a runtime dependency** - required for faithful HTML export (it was previously only referenced optionally and never installed).
+- **`textual-image` pinned to `< 0.13`** - 0.12.0 (the version shipped in the last release) is known good; see the help-panel fix above.
 
 ### Documentation
 - **Void directives** - Tutorial now shows `::: spacer` / `::: divider` without a closing `:::` and notes the trailing marker is optional.

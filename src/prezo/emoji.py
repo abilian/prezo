@@ -1,4 +1,4 @@
-"""Emoji handling for terminal-safe rendering.
+r"""Emoji handling for terminal-safe rendering.
 
 Terminal emulators disagree with Rich's `cell_len` on how many cells an emoji
 occupies (especially VS16 sequences like ``⚠️`` and East-Asian-Wide glyphs like
@@ -6,7 +6,7 @@ occupies (especially VS16 sequences like ``⚠️`` and East-Asian-Wide glyphs l
 static width that is correct for every terminal + font, so the only guaranteed
 fix is to avoid emitting ambiguous-width glyphs.
 
-`replace_emoji` rewrites emoji to fixed-width ASCII markers (``[V]`` / ``[!]`` /
+`replace_emoji` rewrites emoji to fixed-width ASCII markers (``[V]``, ``/!\``,
 ``[X]`` …) for the common, meaning-bearing ones, and strips the rest. The result
 contains only width-1 characters, so alignment is identical on every terminal.
 """
@@ -32,10 +32,10 @@ EMOJI_MARKERS: dict[str, str] = {
     "✘": "[X]",  # ✘ heavy ballot x
     "\U0001f6ab": "[X]",  # 🚫 no entry sign
     # Warning / attention
-    "⚠": "[!]",  # ⚠ warning sign
-    "❗": "[!]",  # ❗ heavy exclamation mark
-    "❕": "[!]",  # ❕ white exclamation mark
-    "‼": "[!]",  # ‼ double exclamation mark
+    "⚠": "/!\\",  # ⚠ warning sign
+    "❗": "/!\\",  # ❗ heavy exclamation mark
+    "❕": "/!\\",  # ❕ white exclamation mark
+    "‼": "/!\\",  # ‼ double exclamation mark
     # Question
     "❓": "[?]",  # ❓ question mark
     "❔": "[?]",  # ❔ white question mark
@@ -56,7 +56,7 @@ EMOJI_MARKERS: dict[str, str] = {
 MARKER_STYLES: dict[str, str] = {
     "[V]": "green",
     "[X]": "red",
-    "[!]": "yellow",
+    "/!\\": "yellow",
     "[?]": "cyan",
     "[i]": "blue",
     "[*]": "magenta",
@@ -86,9 +86,9 @@ _EMOJI = re.compile(
 
 
 def replace_emoji(text: str) -> str:
-    """Rewrite emoji to fixed-width ASCII so terminal alignment is preserved.
+    r"""Rewrite emoji to fixed-width ASCII so terminal alignment is preserved.
 
-    Mapped emoji become bracketed markers (``[V]`` / ``[!]`` / ``[X]`` …);
+    Mapped emoji become short ASCII markers (``[V]``, ``/!\``, ``[X]`` …);
     any other emoji is stripped. Non-emoji symbols (arrows, box drawing, CJK)
     are left untouched.
 

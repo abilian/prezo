@@ -18,6 +18,45 @@ A journey through every release, from today back to day one.
 
 ---
 
+# 2026.5.1 — Emoji-Safe & Faithful
+
+## May 2026
+
+::: columns
+::: column
+::: box "Terminal-Safe Emoji"
+- `--no-emoji` rewrites emoji to aligned ASCII markers
+- `✅`→`[V]`, `⚠️`→`/!\`, `❌`→`[X]` — coloured, never clipped
+- No more broken box or table borders
+:::
+:::
+
+::: column
+::: box "HTML Export Fixed"
+- Headings, lists, tables and `:::` divs now render
+- Before: it dumped raw Markdown source
+:::
+:::
+:::
+
+::: spacer
+
+::: columns
+::: column
+- Void `::: spacer` / `::: divider` no longer leak a stray `:::`
+:::
+
+::: column
+- Pinned `textual-image < 0.13` — no more help panel on launch
+:::
+:::
+
+::: center
+*Plus: `markdown` is now a real dependency, and clearer layout docs.*
+:::
+
+---
+
 # 2026.4.2 — More Polish
 
 ## April 2026

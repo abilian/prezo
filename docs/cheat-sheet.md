@@ -22,6 +22,7 @@ Quick reference for Prezo - terminal-based Markdown presentations.
 | `o` | Slide overview grid |
 | `t` | Table of contents |
 | `p` | Toggle presenter notes |
+| `PageUp` / `PageDown` | Scroll presenter notes (when shown) |
 | `i` | View current image (native quality) |
 
 ### Display
@@ -67,7 +68,7 @@ prezo presentation.md --theme dracula    # Set theme
 prezo presentation.md --no-watch         # Disable auto-reload
 prezo presentation.md -I                 # Incremental lists
 prezo presentation.md --image-mode kitty # Image mode
-prezo presentation.md --no-emoji         # ASCII markers ([V]/[!]/[X]) if emoji misrender
+prezo presentation.md --no-emoji         # ASCII markers ([V] /!\ [X]) if emoji misrender
 prezo presentation.md --time-budget 30   # Pacing indicator (30 min)
 prezo presentation.md --resume           # Resume last session
 
@@ -208,7 +209,7 @@ Config file: `~/.config/prezo/config.toml`
 ```toml
 [display]
 theme = "dark"
-emoji = true        # false: rewrite emoji to ASCII markers ([V]/[!]/[X])
+emoji = true        # false: rewrite emoji to ASCII markers ([V] /!\ [X] ...)
 show_clock = false
 show_elapsed = true
 

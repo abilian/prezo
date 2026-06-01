@@ -859,7 +859,7 @@ Content 2
 
 
 class TestColorizeMarkers:
-    """Emoji-fallback markers ([V]/[!]/[X]) are tinted after rendering."""
+    """Emoji-fallback markers ([V] /!\\ [X]) are tinted after rendering."""
 
     def _segments(self, renderable):
         from rich.console import Console
@@ -884,11 +884,11 @@ class TestColorizeMarkers:
 
         from prezo.layout import colorize_markers
 
-        segs = self._segments(colorize_markers(Text("[V] [!] [X]")))
+        segs = self._segments(colorize_markers(Text("[V] /!\\ [X]")))
         colors = {
-            s.text: s.style.color.name for s in segs if s.text in ("[V]", "[!]", "[X]")
+            s.text: s.style.color.name for s in segs if s.text in ("[V]", "/!\\", "[X]")
         }
-        assert colors == {"[V]": "green", "[!]": "yellow", "[X]": "red"}
+        assert colors == {"[V]": "green", "/!\\": "yellow", "[X]": "red"}
 
     def test_non_marker_text_untouched(self):
         from rich.text import Text
