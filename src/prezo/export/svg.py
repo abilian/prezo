@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import re
+from typing import TYPE_CHECKING
 
 from rich.console import Console
 from rich.panel import Panel
@@ -11,6 +12,7 @@ from rich.style import Style
 from rich.text import Text
 
 from prezo.emoji import replace_emoji
+from prezo.export.common import image_data_uri
 from prezo.layout import (
     colorize_markers,
     has_layout_blocks,
@@ -19,6 +21,9 @@ from prezo.layout import (
     render_styled_markdown,
 )
 from prezo.themes import get_theme
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # Patterns for stripping window chrome from SVG
 # Window border rect with rounded corners
@@ -76,6 +81,59 @@ def _strip_window_chrome(svg: str) -> str:
     return _CONTENT_TRANSFORM_PATTERN.sub(adjust_transform, svg)
 
 
+_VIEWBOX_PATTERN = re.compile(r'viewBox="0 0 ([\d.]+) ([\d.]+)"')
+
+
+def _embed_image(svg: str, image_path: Path, layout: str) -> str:
+    """Composite a slide image into the rendered SVG.
+
+    The image is base64-embedded (so the SVG is self-contained for every PDF
+    backend) and placed inside the slide frame, above the panel and below the
+    status bar. ``fit`` images are contained (letterboxed); others cover.
+
+    Args:
+        svg: The rendered slide SVG.
+        image_path: Resolved path to the image file.
+        layout: Image layout directive (``fit`` contains, anything else covers).
+
+    Returns:
+        The SVG with an ``<image>`` element inserted, or unchanged on failure.
+
+    """
+    match = _VIEWBOX_PATTERN.search(svg)
+    if not match:
+        return svg
+    data_uri = image_data_uri(image_path)
+    if data_uri is None:
+        return svg
+
+    canvas_w, canvas_h = float(match.group(1)), float(match.group(2))
+    # Inset within the slide frame; reserve the bottom strip for the status bar.
+    margin_x = canvas_w * 0.03
+    margin_top = canvas_h * 0.05
+    margin_bottom = canvas_h * 0.08
+    x, y = margin_x, margin_top
+    w = canvas_w - 2 * margin_x
+    h = canvas_h - margin_top - margin_bottom
+
+    aspect = "xMidYMid meet" if layout == "fit" else "xMidYMid slice"
+    image_el = (
+        f'<image x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" '
+        f'preserveAspectRatio="{aspect}" '
+        f'xlink:href="{data_uri}"/>'
+    )
+
+    # Ensure the xlink namespace is declared (Rich's SVG root omits it).
+    if "xmlns:xlink" not in svg:
+        svg = svg.replace(
+            'xmlns="http://www.w3.org/2000/svg">',
+            'xmlns="http://www.w3.org/2000/svg" '
+            'xmlns:xlink="http://www.w3.org/1999/xlink">',
+            1,
+        )
+    return svg.replace("</svg>", f"    {image_el}\n</svg>")
+
+
 def render_slide_to_svg(
     content: str,
     slide_num: int,
@@ -86,6 +144,8 @@ def render_slide_to_svg(
     height: int = 24,
     chrome: bool = True,
     emoji: bool = True,
+    image: Path | None = None,
+    image_layout: str = "fit",
 ) -> str:
     """Render a single slide to SVG using Rich console.
 
@@ -98,6 +158,8 @@ def render_slide_to_svg(
         height: Console height in lines
         chrome: If True, include window decorations; if False, plain SVG for printing
         emoji: If False, rewrite emoji to ASCII markers (matches TUI --no-emoji)
+        image: Resolved path to the slide's image, embedded into the SVG if set
+        image_layout: Image layout directive (``fit`` contains, else covers)
 
     Returns:
         SVG string of the rendered slide
@@ -192,5 +254,9 @@ def render_slide_to_svg(
     # Remove window chrome if requested (for printing)
     if not chrome:
         svg = _strip_window_chrome(svg)
+
+    # Composite the slide image on top so it appears in PDF/PNG/SVG export.
+    if image is not None:
+        svg = _embed_image(svg, image, image_layout)
 
     return svg

@@ -13,6 +13,7 @@ from .common import (
     ExportError,
     check_font_availability,
     print_font_warnings,
+    resolve_slide_image,
 )
 from .svg import render_slide_to_svg
 
@@ -30,6 +31,8 @@ def export_slide_to_image(
     chrome: bool = True,
     scale: float = 1.0,
     emoji: bool = True,
+    image: Path | None = None,
+    image_layout: str = "fit",
 ) -> Path:
     """Export a single slide to PNG or SVG.
 
@@ -45,6 +48,8 @@ def export_slide_to_image(
         chrome: If True, include window decorations.
         scale: Scale factor for PNG output (e.g., 2.0 for 2x resolution).
         emoji: If False, rewrite emoji to ASCII markers (matches TUI --no-emoji).
+        image: Resolved path to the slide's image, embedded if set.
+        image_layout: Image layout directive (``fit`` contains, else covers).
 
     Returns:
         Path to the created image file.
@@ -63,6 +68,8 @@ def export_slide_to_image(
         height=height,
         chrome=chrome,
         emoji=emoji,
+        image=image,
+        image_layout=image_layout,
     )
 
     if output_format == "svg":
@@ -161,6 +168,7 @@ def export_to_images(
 
         out_path = Path(output) if output else source.with_suffix(f".{output_format}")
 
+        image_path, image_layout = resolve_slide_image(slide, source)
         result_path = export_slide_to_image(
             slide.content,
             slide_idx,
@@ -173,6 +181,8 @@ def export_to_images(
             chrome=chrome,
             scale=scale,
             emoji=emoji,
+            image=image_path,
+            image_layout=image_layout,
         )
         return [result_path]
 
@@ -194,6 +204,7 @@ def export_to_images(
     exported_paths = []
     for i, slide in enumerate(presentation.slides):
         out_path = out_dir / f"{prefix}_{i + 1:03d}.{output_format}"
+        image_path, image_layout = resolve_slide_image(slide, source)
         result_path = export_slide_to_image(
             slide.content,
             i,
@@ -206,6 +217,8 @@ def export_to_images(
             chrome=chrome,
             scale=scale,
             emoji=emoji,
+            image=image_path,
+            image_layout=image_layout,
         )
         exported_paths.append(result_path)
 

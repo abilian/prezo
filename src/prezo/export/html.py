@@ -5,13 +5,23 @@ from __future__ import annotations
 import html as html_mod
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from prezo.emoji import MARKER_STYLES, replace_emoji
 from prezo.layout import LayoutBlock, has_layout_blocks, parse_layout
 from prezo.parser import clean_marp_directives, extract_notes, parse_presentation
 from prezo.themes import get_theme
 
-from .common import EXIT_FAILURE, EXIT_SUCCESS, ExportError
+from .common import (
+    EXIT_FAILURE,
+    EXIT_SUCCESS,
+    ExportError,
+    image_data_uri,
+    resolve_slide_image,
+)
+
+if TYPE_CHECKING:
+    from prezo.parser import Slide
 
 # HTML export templates
 HTML_TEMPLATE = """\
@@ -134,6 +144,12 @@ HTML_TEMPLATE = """\
         img {{
             max-width: 100%;
             height: auto;
+        }}
+        .slide-image {{
+            display: block;
+            max-width: 100%;
+            max-height: 70vh;
+            margin: 1rem auto;
         }}
         /* Multi-column layouts */
         .columns {{
@@ -310,6 +326,30 @@ def _colorize_html_markers(html: str) -> str:
     return _HTML_MARKER_PATTERN.sub(repl, html)
 
 
+def _slide_image_html(slide: Slide, source: Path | None) -> str:
+    """Return an ``<img>`` element for the slide's image, or empty string.
+
+    Background images (``![bg ...]``) are stripped from the Markdown before
+    rendering, so they are embedded here directly as a self-contained data URI.
+
+    Args:
+        slide: The slide whose image to embed.
+        source: Path to the presentation (for relative resolution).
+
+    Returns:
+        An ``<img class="slide-image">`` tag, or "" if there is no usable image.
+
+    """
+    image_path, layout = resolve_slide_image(slide, source)
+    if image_path is None:
+        return ""
+    data_uri = image_data_uri(image_path)
+    if data_uri is None:
+        return ""
+    fit = "contain" if layout == "fit" else "cover"
+    return f'\n<img class="slide-image" style="object-fit: {fit}" src="{data_uri}">'
+
+
 def render_slide_to_html(content: str) -> str:
     """Convert markdown slide content (incl. fenced divs) to HTML.
 
@@ -384,6 +424,9 @@ def export_to_html(
         content_html = render_slide_to_html(cleaned_content)
         if not emoji:
             content_html = _colorize_html_markers(content_html)
+
+        # Embed the slide image (clean_marp_directives strips ![bg] markup)
+        content_html += _slide_image_html(slide, source)
 
         # Handle notes
         notes_html = ""

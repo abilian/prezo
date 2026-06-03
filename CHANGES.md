@@ -7,6 +7,7 @@ Starting with version 2026.1.1, Prezo uses [CalVer](https://calver.org/) version
 ## [2026.5.1] - 2026-05-31
 
 ### Added
+- **Images in PDF/PNG/SVG/HTML export** - Slide images (`![bg fit]` / `![bg]`) are now embedded into exported PDF, PNG, SVG and HTML output (base64, so each file is self-contained). Previously image-only slides exported blank because the renderers ignored background images entirely. `fit` images are letterboxed; others cover.
 - **`--no-emoji` flag / `[display] emoji` option** - Rewrites emoji to fixed-width ASCII markers (`✅`→`[V]`, `⚠️`→`/!\`, `❌`→`[X]`, `❓`→`[?]`, …; decorative emoji are stripped). Terminals disagree with Rich on emoji cell width — some clip wide glyphs, others miscount VS16 sequences like `⚠️` and break box/table borders. Since no static width is correct for every terminal+font, this guarantees alignment by emitting only width-1 characters. The markers keep a colour cue (`[V]` green, `/!\` yellow, `[X]` red, …) via post-render recolouring, so they stand out in the TUI, HTML, and PNG/SVG/PDF export. Applies everywhere (keeping exports a faithful image of the console); arrows, box-drawing, and CJK text are left untouched.
 
 ### Fixed

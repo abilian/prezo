@@ -222,6 +222,58 @@ class TestRenderSlideToHtmlRendersMarkup:
         assert "::: column" not in html
 
 
+class TestImageEmbedding:
+    """Slide images must be embedded into SVG/PNG/PDF export."""
+
+    def _make_deck(self, tmp_path: Path) -> Path:
+        from PIL import Image
+
+        Image.new("RGB", (16, 16), (200, 30, 30)).save(tmp_path / "pic.png")
+        deck = tmp_path / "deck.md"
+        deck.write_text("# Text Slide\n\nBody.\n\n---\n\n![bg fit](pic.png)\n")
+        return deck
+
+    def test_svg_export_embeds_image(self, tmp_path: Path):
+        deck = self._make_deck(tmp_path)
+        out = tmp_path / "slide.svg"
+
+        # Slide 2 is the image slide (1-indexed).
+        paths = export_to_images(deck, out, output_format="svg", slide_num=2)
+
+        svg = paths[0].read_text()
+        assert "<image " in svg
+        assert "base64," in svg
+
+    def test_text_slide_has_no_embedded_image(self, tmp_path: Path):
+        deck = self._make_deck(tmp_path)
+        out = tmp_path / "slide.svg"
+
+        # Slide 1 has no image directive.
+        paths = export_to_images(deck, out, output_format="svg", slide_num=1)
+
+        assert "<image " not in paths[0].read_text()
+
+    def test_missing_image_is_skipped(self, tmp_path: Path):
+        deck = tmp_path / "deck.md"
+        deck.write_text("![bg fit](does-not-exist.png)\n")
+        out = tmp_path / "slide.svg"
+
+        paths = export_to_images(deck, out, output_format="svg", slide_num=1)
+
+        # Unresolvable image: render succeeds without an <image> element.
+        assert "<image " not in paths[0].read_text()
+
+    def test_html_export_embeds_image(self, tmp_path: Path):
+        deck = self._make_deck(tmp_path)
+        out = tmp_path / "out.html"
+
+        export_to_html(deck, out)
+
+        html = out.read_text()
+        assert 'class="slide-image"' in html
+        assert 'src="data:image' in html
+
+
 class TestExportToHtml:
     """Tests for export_to_html function."""
 

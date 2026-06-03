@@ -19,6 +19,7 @@ from .common import (
     ExportError,
     check_font_availability,
     print_font_warnings,
+    resolve_slide_image,
 )
 from .svg import render_slide_to_svg
 
@@ -416,6 +417,7 @@ def export_to_pdf(
 
         # Render each slide to SVG
         for i, slide in enumerate(presentation.slides):
+            image_path, image_layout = resolve_slide_image(slide, source)
             svg_content = render_slide_to_svg(
                 slide.content,
                 i,
@@ -425,6 +427,8 @@ def export_to_pdf(
                 height=height,
                 chrome=chrome,
                 emoji=emoji,
+                image=image_path,
+                image_layout=image_layout,
             )
 
             svg_file = tmpdir / f"slide_{i:04d}.svg"

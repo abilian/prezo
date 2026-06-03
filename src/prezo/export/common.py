@@ -2,13 +2,58 @@
 
 from __future__ import annotations
 
+import base64
+import mimetypes
 import shutil
 import subprocess
 import sys
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from prezo.parser import Slide
 
 
 class ExportError(Exception):
     """Raised when an export operation fails."""
+
+
+def image_data_uri(image_path: Path) -> str | None:
+    """Read an image file and return it as a base64 ``data:`` URI.
+
+    Args:
+        image_path: Path to the image file.
+
+    Returns:
+        A ``data:<mime>;base64,<data>`` URI, or None if the file is unreadable.
+
+    """
+    try:
+        data = image_path.read_bytes()
+    except OSError:
+        return None
+    mime = mimetypes.guess_type(image_path.name)[0] or "image/png"
+    return f"data:{mime};base64," + base64.b64encode(data).decode("ascii")
+
+
+def resolve_slide_image(slide: Slide, source: Path | None) -> tuple[Path | None, str]:
+    """Resolve a slide's first image to an absolute path for embedding.
+
+    Args:
+        slide: The slide whose image to resolve.
+        source: Path to the presentation file (for relative resolution).
+
+    Returns:
+        Tuple of (resolved path or None, layout directive).
+
+    """
+    from prezo.images.processor import resolve_image_path  # noqa: PLC0415
+
+    if not slide.images:
+        return None, "fit"
+    image = slide.images[0]
+    return resolve_image_path(image.path, source), image.layout
 
 
 # Exit codes for CLI (only used in run_* wrapper functions)
